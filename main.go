@@ -9,62 +9,72 @@ import (
 )
 
 func main() {
+	log.Println("main: Starting application")
+
 	settings := ads.ClientSettings{
-		TargetNetID:   "127.0.0.1.1.1",   // Replace with your target NetID
+		TargetNetID: "192.168.157.131.1.1", // Replace with your target NetID
+		// TargetNetID:   "127.0.0.1.1.1",   // Replace with your target NetID
 		TargetPort:    851,               // Replace with your target port
 		RouterAddr:    "127.0.0.1:48898", // Replace with your router address
 		Timeout:       5 * time.Second,   // Set a timeout for ADS requests
 		AllowHalfOpen: true,              // Set to true to allow connecting to a PLC in non-RUN state
 	}
 
+	log.Println("main: Creating new ADS client with settings:", settings)
 	client := ads.NewClient(settings)
+	log.Println("main: ADS client created.")
 
+	log.Println("main: Attempting to connect to ADS router...")
 	if err := client.Connect(); err != nil {
-		log.Fatalf("Failed to connect: %v", err)
+		log.Fatalf("main: Failed to connect: %v", err)
 	}
-	defer client.Disconnect()
+	defer func() {
+		log.Println("main: Disconnecting from ADS router...")
+		if err := client.Disconnect(); err != nil {
+			log.Printf("main: Error during disconnect: %v", err)
+		}
+		log.Println("main: Disconnected from ADS router.")
+	}()
 
 	fmt.Println("Connected to ADS router")
+	log.Println("main: Successfully connected to ADS router.")
 
 	// Example: Read Device Info
+	log.Println("main: Reading device info...")
 	deviceInfo, err := client.ReadDeviceInfo()
 	if err != nil {
-		log.Fatalf("Failed to read device info: %v", err)
+		log.Fatalf("main: Failed to read device info: %v", err)
 	}
-
+	log.Printf("main: Device Info: %+v\n", deviceInfo)
 	fmt.Printf("Device Info: %+v\n", deviceInfo)
 
 	// Example: Read ADS State
-	state, err := client.ReadState()
+	log.Println("main: Reading ADS state...")
+	state, err := client.ReadTcSystemState()
 	if err != nil {
-		log.Fatalf("Failed to read state: %v", err)
+		log.Fatalf("main: Failed to read state: %v", err)
 	}
+	log.Printf("main: ADS State: %+v\n", state)
 	fmt.Printf("ADS State: %+v\n", state)
 
-	// Example: Set to Config Mode (uncomment to use)
-	// if _, err := client.SetToConfig(); err != nil {
-	// 	log.Fatalf("Failed to set to config: %v", err)
-	// }
-	// fmt.Println("Set to Config mode")
+	// Example: Set TwinCAT to Config mode
+	log.Println("main: Setting TwinCAT to Config mode...")
+	// err = client.SetTcSystemToConfig()
+	err = client.SetTcSystemToRun(true)
+	if err != nil {
+		log.Fatalf("main: Failed to set TwinCAT to Config mode: %v", err)
+	}
+	log.Println("main: TwinCAT set to Config mode.")
+	fmt.Println("TwinCAT set to Config mode.")
 
-	// Example: Set to Run Mode (uncomment to use)
-	// if _, err := client.SetToRun(); err != nil {
-	// 	log.Fatalf("Failed to set to run: %v", err)
-	// }
-	// fmt.Println("Set to Run mode")
+	// Read ADS State again to confirm
+	log.Println("main: Reading ADS state after setting to Config...")
+	state, err = client.ReadTcSystemState()
+	if err != nil {
+		log.Fatalf("main: Failed to read state after setting to Config: %v", err)
+	}
+	log.Printf("main: ADS State after Config: %+v\n", state)
+	fmt.Printf("ADS State after Config: %+v\n", state)
 
-	// Example: Read a variable (replace with your details)
-	// readResp, err := client.Read(0x4020, 0, 4)
-	// if err != nil {
-	// 	log.Fatalf("Failed to read: %v", err)
-	// }
-	// fmt.Printf("Read response: %+v\n", readResp)
-
-	// Example: Write to a variable (replace with your details)
-	// writeData := []byte{1, 2, 3, 4}
-	// writeResp, err := client.Write(0x4020, 0, writeData)
-	// if err != nil {
-	// 	log.Fatalf("Failed to write: %v", err)
-	// }
-	// fmt.Printf("Write response: %+v\n", writeResp)
+	log.Println("main: Application finished.")
 }

@@ -43,6 +43,11 @@ func ByteArrayToAmsNetIDStr(b []byte) string {
 	return strings.Join(parts, ".")
 }
 
+type AmsAddress struct {
+	NetID string
+	Port  uint16
+}
+
 // AmsTcpHeader represents the AMS/TCP header.
 type AmsTcpHeader struct {
 	Command types.AMSHeaderFlag
@@ -51,53 +56,13 @@ type AmsTcpHeader struct {
 
 // AmsHeader represents the AMS header.
 type AmsHeader struct {
-	Target     types.AmsAddress
-	Source     types.AmsAddress
+	Target     AmsAddress
+	Source     AmsAddress
 	Command    types.ADSCommand
 	StateFlags uint16
 	DataLength uint32
 	ErrorCode  uint32
 	InvokeID   uint32
-}
-
-// AdsReadDeviceInfoResponse represents the response of a ReadDeviceInfo command.
-type AdsReadDeviceInfoResponse struct {
-	ErrorCode    uint32
-	MajorVersion uint8
-	MinorVersion uint8
-	VersionBuild uint16
-	DeviceName   string
-}
-
-// AdsReadStateResponse represents the response of a ReadState command.
-type AdsReadStateResponse struct {
-	ErrorCode   uint32
-	AdsState    types.ADSState
-	DeviceState uint16
-}
-
-// AdsWriteResponse represents the response of a Write command.
-type AdsWriteResponse struct {
-	ErrorCode uint32
-}
-
-// AdsReadResponse represents the response of a Read command.
-type AdsReadResponse struct {
-	ErrorCode uint32
-	Length    uint32
-	Data      []byte
-}
-
-// AdsReadWriteResponse represents the response of a ReadWrite command.
-type AdsReadWriteResponse struct {
-	ErrorCode uint32
-	Length    uint32
-	Data      []byte
-}
-
-// AdsWriteControlResponse represents the response of a WriteControl command.
-type AdsWriteControlResponse struct {
-	ErrorCode uint32
 }
 
 // createAmsTcpHeader creates the AMS/TCP header.
@@ -109,7 +74,7 @@ func createAmsTcpHeader(command types.AMSHeaderFlag, dataLength uint32) []byte {
 }
 
 // createAmsHeader creates the AMS header.
-func createAmsHeader(target types.AmsAddress, source types.AmsAddress, command types.ADSCommand, dataLength uint32, invokeID uint32) ([]byte, error) {
+func createAmsHeader(target AmsAddress, source AmsAddress, command types.ADSCommand, dataLength uint32, invokeID uint32) ([]byte, error) {
 	buf := make([]byte, AMSHeaderLength)
 	targetNetID, err := AmsNetIDStrToByteArray(target.NetID)
 	if err != nil {

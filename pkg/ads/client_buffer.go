@@ -3,6 +3,8 @@ package ads
 import (
 	"encoding/binary"
 	"io"
+
+	"github.com/jarmoCluyse/ads-go/pkg/ads/constants"
 )
 
 // receive handles incoming data from the ADS router.
@@ -39,19 +41,19 @@ func (c *Client) receive() {
 func (c *Client) processReceiveBuffer() {
 	for {
 		// Check if we have enough data for AMS/TCP header (6 bytes)
-		if c.receiveBuffer.Len() < AMSTCPHeaderLength {
+		if c.receiveBuffer.Len() < constants.AMSTCPHeaderLength {
 			return // Not enough data for header
 		}
 
 		// Read packet length from AMS/TCP header (bytes 2-5)
 		// We need to peek without advancing the buffer's read pointer
-		headerBytes := c.receiveBuffer.Bytes()[:AMSTCPHeaderLength]
+		headerBytes := c.receiveBuffer.Bytes()[:constants.AMSTCPHeaderLength]
 		packetLength := binary.LittleEndian.Uint32(headerBytes[2:6])
 
 		// Total length of the full packet (AMS/TCP header + AMS header + ADS data)
-		totalPacketLength := AMSTCPHeaderLength + packetLength
+		totalPacketLength := constants.AMSTCPHeaderLength + packetLength
 
-		if packetLength < AMSHeaderLength {
+		if packetLength < constants.AMSHeaderLength {
 			return // Not enough data for full packet
 		}
 		// Check if we have the full packet
@@ -64,9 +66,9 @@ func (c *Client) processReceiveBuffer() {
 		c.receiveBuffer.Read(fullPacket)
 
 		// Now process the full packet
-		amsPacket := fullPacket[AMSTCPHeaderLength:]
-		amsHeader := amsPacket[:AMSHeaderLength]
-		amsData := amsPacket[AMSHeaderLength:]
+		amsPacket := fullPacket[constants.AMSTCPHeaderLength:]
+		amsHeader := amsPacket[:constants.AMSHeaderLength]
+		amsData := amsPacket[constants.AMSHeaderLength:]
 
 		invokeID := binary.LittleEndian.Uint32(amsHeader[28:32])
 		c.logger.Debug("receive: Received packet", "invokeID", invokeID)

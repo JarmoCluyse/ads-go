@@ -2,11 +2,10 @@ package ads
 
 import (
 	"encoding/binary"
-	"fmt"
-	"strconv"
-	"strings"
 
+	"github.com/jarmoCluyse/ads-go/pkg/ads/constants"
 	"github.com/jarmoCluyse/ads-go/pkg/ads/types"
+	"github.com/jarmoCluyse/ads-go/pkg/ads/utils"
 )
 
 // ADSReservedIndexGroups defines the reserved index groups.
@@ -16,32 +15,6 @@ const (
 	DeviceData    ADSReservedIndexGroups = 0xF100
 	SymbolVersion ADSReservedIndexGroups = 0xF006
 )
-
-// AmsNetIDStrToByteArray converts an AmsNetId string to a byte array.
-func AmsNetIDStrToByteArray(s string) ([]byte, error) {
-	parts := strings.Split(s, ".")
-	if len(parts) != 6 {
-		return nil, fmt.Errorf("invalid AmsNetId: %s", s)
-	}
-	bytes := make([]byte, 6)
-	for i, part := range parts {
-		val, err := strconv.Atoi(part)
-		if err != nil {
-			return nil, fmt.Errorf("invalid part in AmsNetId: %s", part)
-		}
-		bytes[i] = byte(val)
-	}
-	return bytes, nil
-}
-
-// ByteArrayToAmsNetIDStr converts a byte array to an AmsNetId string.
-func ByteArrayToAmsNetIDStr(b []byte) string {
-	parts := make([]string, len(b))
-	for i, byte := range b {
-		parts[i] = fmt.Sprintf("%d", byte)
-	}
-	return strings.Join(parts, ".")
-}
 
 type AmsAddress struct {
 	NetID string
@@ -67,7 +40,7 @@ type AmsHeader struct {
 
 // createAmsTcpHeader creates the AMS/TCP header.
 func createAmsTcpHeader(command types.AMSHeaderFlag, dataLength uint32) []byte {
-	buf := make([]byte, AMSTCPHeaderLength)
+	buf := make([]byte, constants.AMSTCPHeaderLength)
 	binary.LittleEndian.PutUint16(buf[0:2], uint16(command))
 	binary.LittleEndian.PutUint32(buf[2:6], dataLength)
 	return buf
@@ -75,15 +48,15 @@ func createAmsTcpHeader(command types.AMSHeaderFlag, dataLength uint32) []byte {
 
 // createAmsHeader creates the AMS header.
 func createAmsHeader(target AmsAddress, source AmsAddress, command types.ADSCommand, dataLength uint32, invokeID uint32) ([]byte, error) {
-	buf := make([]byte, AMSHeaderLength)
-	targetNetID, err := AmsNetIDStrToByteArray(target.NetID)
+	buf := make([]byte, constants.AMSHeaderLength)
+	targetNetID, err := utils.AmsNetIdStrToByteArray(target.NetID)
 	if err != nil {
 		return nil, err
 	}
 	copy(buf[0:6], targetNetID)
 	binary.LittleEndian.PutUint16(buf[6:8], target.Port)
 
-	sourceNetID, err := AmsNetIDStrToByteArray(source.NetID)
+	sourceNetID, err := utils.AmsNetIdStrToByteArray(source.NetID)
 	if err != nil {
 		return nil, err
 	}

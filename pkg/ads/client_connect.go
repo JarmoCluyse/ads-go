@@ -5,7 +5,9 @@ import (
 	"fmt"
 	"net"
 
+	"github.com/jarmoCluyse/ads-go/pkg/ads/constants"
 	"github.com/jarmoCluyse/ads-go/pkg/ads/types"
+	"github.com/jarmoCluyse/ads-go/pkg/ads/utils"
 )
 
 // Connect establishes a connection to the ADS router.
@@ -99,7 +101,7 @@ func (c *Client) registerAdsPort() error {
 		return err
 	}
 
-	respAmsTcpHeader := make([]byte, AMSTCPHeaderLength)
+	respAmsTcpHeader := make([]byte, constants.AMSTCPHeaderLength)
 	if _, err := c.conn.Read(respAmsTcpHeader); err != nil {
 		c.logger.Error("registerAdsPort: Failed to read response AMS TCP header", "error", err)
 		return err
@@ -116,7 +118,7 @@ func (c *Client) registerAdsPort() error {
 
 	c.logger.Debug("registerAdsPort: respData", "length", len(respData), "packet", respData)
 
-	c.localAmsAddr.NetID = ByteArrayToAmsNetIDStr(respData[0:6])
+	c.localAmsAddr.NetID = utils.ByteArrayToAmsNetIdStr(respData[0:6])
 	c.localAmsAddr.Port = binary.LittleEndian.Uint16(respData[6:8])
 
 	c.logger.Debug("registerAdsPort: Local AMS Address set", "netID", c.localAmsAddr.NetID, "port", c.localAmsAddr.Port)

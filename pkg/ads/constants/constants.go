@@ -1,4 +1,4 @@
-package ads
+package constants
 
 const (
 	AMSTCPHeaderLength   = 6               // AMS/TCP header length

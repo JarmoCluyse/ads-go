@@ -41,9 +41,29 @@ func (c *Client) GetSymbol(path string) (types.AdsSymbol, error) {
 		c.logger.Error("GetSymbol: Failed to send ADS command", "error", err)
 		return types.AdsSymbol{}, fmt.Errorf("GetSymbol: failed to send ADS command: %w", err)
 	}
+	c.logger.Debug("GetSymbol: Full response received from ADS server", "response", fmt.Sprintf("%x", response), "length", len(response))
 
-	// The first 4 bytes of the response are the length of the data
-	symbol, err := c.parseAdsSymbol(response[4:])
+	// Check for minimum response length (4 bytes for error code + 4 bytes for data length)
+	if len(response) < 8 {
+		return types.AdsSymbol{}, fmt.Errorf("GetSymbol: invalid response length: %d, expected at least 8 bytes", len(response))
+	}
+
+	errorCode := binary.LittleEndian.Uint32(response[0:4])
+	if errorCode != 0 {
+		return types.AdsSymbol{}, fmt.Errorf("GetSymbol: ADS error received: 0x%x", errorCode)
+	}
+
+	// Read the length of the actual symbol data
+	symbolDataLength := binary.LittleEndian.Uint32(response[4:8])
+	c.logger.Debug("GetSymbol: Symbol data length from response", "length", symbolDataLength)
+
+	// Ensure we have enough data for the symbol
+	if len(response) < int(8+symbolDataLength) {
+		return types.AdsSymbol{}, fmt.Errorf("GetSymbol: incomplete symbol data received. Expected %d bytes, got %d", 8+symbolDataLength, len(response))
+	}
+
+	// Pass only the actual symbol data to parseAdsSymbol
+	symbol, err := c.parseAdsSymbol(response[8 : 8+symbolDataLength])
 	if err != nil {
 		c.logger.Error("GetSymbol: Failed to parse symbol from response", "error", err)
 		return types.AdsSymbol{}, fmt.Errorf("GetSymbol: failed to parse symbol from response: %w", err)

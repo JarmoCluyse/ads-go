@@ -6,6 +6,8 @@ import (
 	"net"
 	"sync"
 	"time"
+
+	"github.com/jarmoCluyse/ads-go/pkg/ads/types"
 )
 
 // Client represents an ADS client.
@@ -18,6 +20,8 @@ type Client struct {
 	localAmsAddr  AmsAddress
 	receiveBuffer bytes.Buffer // Buffer for incoming data
 	logger        *slog.Logger
+	plcSymbols    map[string]types.AdsSymbol
+	plcDataTypes  map[string]types.AdsDataType
 }
 
 // ClientSettings holds the settings for the ADS client.
@@ -37,10 +41,13 @@ func NewClient(settings ClientSettings, logger *slog.Logger) *Client {
 		logger.Info("NewClient: Timeout not set, defaulting to 2 seconds.")
 	}
 	client := &Client{
-		settings: settings,
-		requests: make(map[uint32]chan []byte),
-		logger:   logger,
+		settings:     settings,
+		requests:     make(map[uint32]chan []byte),
+		logger:       logger,
+		plcSymbols:   make(map[string]types.AdsSymbol),
+		plcDataTypes: make(map[string]types.AdsDataType),
 	}
 	logger.Info("NewClient: ADS client initialized.")
 	return client
 }
+

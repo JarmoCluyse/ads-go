@@ -71,7 +71,7 @@ func (c *Client) processReceiveBuffer() {
 		amsData := amsPacket[constants.AMSHeaderLength:]
 
 		invokeID := binary.LittleEndian.Uint32(amsHeader[28:32])
-		c.logger.Debug("receive: Received packet", "invokeID", invokeID)
+		c.logger.Debug("receive: Received packet", "invokeID", invokeID, "length", totalPacketLength, "fullPacket", fullPacket)
 
 		c.mutex.Lock()
 		ch, ok := c.requests[invokeID]

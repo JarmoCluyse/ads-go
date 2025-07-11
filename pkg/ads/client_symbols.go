@@ -43,7 +43,7 @@ func (c *Client) GetSymbol(path string) (types.AdsSymbol, error) {
 	}
 
 	// The first 4 bytes of the response are the length of the data
-	symbol, err := parseAdsSymbol(response[4:])
+	symbol, err := c.parseAdsSymbol(response[4:])
 	if err != nil {
 		c.logger.Error("GetSymbol: Failed to parse symbol from response", "error", err)
 		return types.AdsSymbol{}, fmt.Errorf("GetSymbol: failed to parse symbol from response: %w", err)
@@ -56,53 +56,60 @@ func (c *Client) GetSymbol(path string) (types.AdsSymbol, error) {
 	return symbol, nil
 }
 
-func parseAdsSymbol(data []byte) (types.AdsSymbol, error) {
+func (c *Client) parseAdsSymbol(data []byte) (types.AdsSymbol, error) {
 	var symbol types.AdsSymbol
 	reader := bytes.NewReader(data)
 
-	// Log the raw data being parsed
-	// c.logger.Debug("parseAdsSymbol: Raw data for parsing", "data", fmt.Sprintf("%x", data))
+	// Log the raw data being parsed and its length
+	// c.logger.Debug("parseAdsSymbol: Raw data for parsing", "data", fmt.Sprintf("%x", data), "length", len(data))
 
 	if err := binary.Read(reader, binary.LittleEndian, &symbol.IndexGroup); err != nil {
-		return types.AdsSymbol{}, fmt.Errorf("parseAdsSymbol: failed to read IndexGroup: %w", err)
+		return types.AdsSymbol{}, fmt.Errorf("parseAdsSymbol: failed to read IndexGroup: %w (remaining bytes: %d)", err, reader.Len())
 	}
+	// c.logger.Debug("parseAdsSymbol: Read IndexGroup", "value", symbol.IndexGroup, "remainingBytes", reader.Len())
+
+	c.logger.Debug("parseAdsSymbol: Attempting to read IndexOffset", "remainingBytes", reader.Len())
 	if err := binary.Read(reader, binary.LittleEndian, &symbol.IndexOffset); err != nil {
-		return types.AdsSymbol{}, fmt.Errorf("parseAdsSymbol: failed to read IndexOffset: %w", err)
+		c.logger.Error("parseAdsSymbol: Failed to read IndexOffset", "error", err, "remainingBytes", reader.Len())
+		return types.AdsSymbol{}, fmt.Errorf("parseAdsSymbol: failed to read IndexOffset: %w (remaining bytes: %d)", err, reader.Len())
 	}
+	c.logger.Debug("parseAdsSymbol: Successfully read IndexOffset", "value", symbol.IndexOffset, "remainingBytes", reader.Len())
+	// c.logger.Debug("parseAdsSymbol: Read IndexOffset", "value", symbol.IndexOffset, "remainingBytes", reader.Len())
+
 	if err := binary.Read(reader, binary.LittleEndian, &symbol.Size); err != nil {
-		return types.AdsSymbol{}, fmt.Errorf("parseAdsSymbol: failed to read Size: %w", err)
+		return types.AdsSymbol{}, fmt.Errorf("parseAdsSymbol: failed to read Size: %w (remaining bytes: %d)", err, reader.Len())
 	}
 	if err := binary.Read(reader, binary.LittleEndian, &symbol.DataType); err != nil {
-		return types.AdsSymbol{}, fmt.Errorf("parseAdsSymbol: failed to read DataType: %w", err)
+		return types.AdsSymbol{}, fmt.Errorf("parseAdsSymbol: failed to read DataType: %w (remaining bytes: %d)", err, reader.Len())
 	}
 	if err := binary.Read(reader, binary.LittleEndian, &symbol.Flags); err != nil {
-		return types.AdsSymbol{}, fmt.Errorf("parseAdsSymbol: failed to read Flags: %w", err)
+		return types.AdsSymbol{}, fmt.Errorf("parseAdsSymbol: failed to read Flags: %w (remaining bytes: %d)", err, reader.Len())
 	}
 	if err := binary.Read(reader, binary.LittleEndian, &symbol.NameLength); err != nil {
-		return types.AdsSymbol{}, fmt.Errorf("parseAdsSymbol: failed to read NameLength: %w", err)
+		return types.AdsSymbol{}, fmt.Errorf("parseAdsSymbol: failed to read NameLength: %w (remaining bytes: %d)", err, reader.Len())
 	}
 	if err := binary.Read(reader, binary.LittleEndian, &symbol.TypeLength); err != nil {
-		return types.AdsSymbol{}, fmt.Errorf("parseAdsSymbol: failed to read TypeLength: %w", err)
+		return types.AdsSymbol{}, fmt.Errorf("parseAdsSymbol: failed to read TypeLength: %w (remaining bytes: %d)", err, reader.Len())
 	}
 	if err := binary.Read(reader, binary.LittleEndian, &symbol.CommentLength); err != nil {
-		return types.AdsSymbol{}, fmt.Errorf("parseAdsSymbol: failed to read CommentLength: %w", err)
+		return types.AdsSymbol{}, fmt.Errorf("parseAdsSymbol: failed to read CommentLength: %w (remaining bytes: %d)", err, reader.Len())
 	}
 
 	name := make([]byte, symbol.NameLength)
 	if err := binary.Read(reader, binary.LittleEndian, &name); err != nil {
-		return types.AdsSymbol{}, fmt.Errorf("parseAdsSymbol: failed to read Name: %w", err)
+		return types.AdsSymbol{}, fmt.Errorf("parseAdsSymbol: failed to read Name: %w (remaining bytes: %d)", err, reader.Len())
 	}
 	symbol.Name = string(name)
 
 	typeName := make([]byte, symbol.TypeLength)
 	if err := binary.Read(reader, binary.LittleEndian, &typeName); err != nil {
-		return types.AdsSymbol{}, fmt.Errorf("parseAdsSymbol: failed to read TypeName: %w", err)
+		return types.AdsSymbol{}, fmt.Errorf("parseAdsSymbol: failed to read TypeName: %w (remaining bytes: %d)", err, reader.Len())
 	}
 	symbol.Type = string(typeName)
 
 	comment := make([]byte, symbol.CommentLength)
 	if err := binary.Read(reader, binary.LittleEndian, &comment); err != nil {
-		return types.AdsSymbol{}, fmt.Errorf("parseAdsSymbol: failed to read Comment: %w", err)
+		return types.AdsSymbol{}, fmt.Errorf("parseAdsSymbol: failed to read Comment: %w (remaining bytes: %d)", err, reader.Len())
 	}
 	symbol.Comment = string(comment)
 

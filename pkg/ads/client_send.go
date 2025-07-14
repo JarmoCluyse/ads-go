@@ -21,7 +21,7 @@ func (c *Client) send(req AdsCommandRequest) ([]byte, error) {
 	c.mutex.Lock()
 	c.invokeID++
 	invokeID := c.invokeID
-	ch := make(chan []byte)
+	ch := make(chan Response)
 	c.requests[invokeID] = ch
 	c.mutex.Unlock()
 	c.logger.Debug("send: Assigned InvokeID", "invokeID", invokeID)
@@ -56,8 +56,11 @@ func (c *Client) send(req AdsCommandRequest) ([]byte, error) {
 
 	select {
 	case response := <-ch:
-		c.logger.Debug("send: Received response", "invokeID", invokeID)
-		return response, nil
+		c.logger.Debug("send: Received response", "invokeID", invokeID, "response", response)
+		if response.Error != nil {
+			return nil, response.Error
+		}
+		return response.Data, nil
 	case <-time.After(c.settings.Timeout):
 		c.logger.Warn("send: Timeout waiting for response", "invokeID", invokeID)
 		return nil, fmt.Errorf("timeout waiting for response")

@@ -177,19 +177,8 @@ func (c *Client) ReadDeviceInfo() (*AdsReadDeviceInfoResponse, error) {
 	}
 	c.logger.Debug("ReadDeviceInfo: Received raw response data", "length", len(data), "data", fmt.Sprintf("%x", data))
 
-	if len(data) < 4 {
-		c.logger.Error("ReadDeviceInfo: Invalid response length", "length", len(data), "expected", "at least 4")
-		return nil, fmt.Errorf("invalid response length: %d", len(data))
-	}
-
-	errorCode := binary.LittleEndian.Uint32(data[0:4])
-	if errorCode != 0 {
-		c.logger.Error("ReadDeviceInfo: ADS error received", "errorCode", fmt.Sprintf("0x%x", errorCode))
-		return nil, fmt.Errorf("ADS error: 0x%x", errorCode)
-	}
-
 	// Handle cases where only the error code is returned (e.g., older/embedded runtimes)
-	if len(data) == 4 && errorCode == 0 {
+	if len(data) == 4 {
 		c.logger.Info("ReadDeviceInfo: Received only error code, returning default device info.")
 		return &AdsReadDeviceInfoResponse{
 				ErrorCode:    0,
@@ -207,7 +196,6 @@ func (c *Client) ReadDeviceInfo() (*AdsReadDeviceInfoResponse, error) {
 	}
 
 	resp := &AdsReadDeviceInfoResponse{
-		ErrorCode:    errorCode,
 		MajorVersion: data[4],
 		MinorVersion: data[5],
 		VersionBuild: binary.LittleEndian.Uint16(data[6:8]),

@@ -71,7 +71,7 @@ func (c *Client) setupPlcConnection() error {
 	}
 
 	// Check if PLC is in RUN state
-	state, err := c.ReadState()
+	state, err := c.ReadTcSystemState()
 	if err != nil {
 		c.logger.Error("setupPlcConnection: Failed to read state", "error", err)
 		return fmt.Errorf("failed to read state: %w", err)

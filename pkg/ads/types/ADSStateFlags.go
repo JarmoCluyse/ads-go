@@ -3,7 +3,7 @@ package types
 import "slices"
 
 // ADSStateFlags defines the ADS state flags (from TwinCAT.Ads.dll by Beckhoff)
-type ADSStateFlags uint32
+type ADSStateFlags uint16
 
 const (
 	ADSStateFlagResponse       ADSStateFlags = 1     // AMSCMDSF_RESPONSE

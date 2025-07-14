@@ -11,9 +11,9 @@ import (
 
 func main() {
 	logLevel := &slog.LevelVar{}
-	// logLevel.Set(slog.LevelDebug)
+	logLevel.Set(slog.LevelDebug)
 	// logLevel.Set(slog.LevelInfo)
-	logLevel.Set(slog.LevelWarn)
+	// logLevel.Set(slog.LevelWarn)
 
 	handler := tint.NewHandler(os.Stdout, &tint.Options{Level: logLevel})
 	slog.SetDefault(slog.New(handler))

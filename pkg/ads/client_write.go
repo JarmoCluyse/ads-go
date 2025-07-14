@@ -25,8 +25,8 @@ func (c *Client) WriteValue(path string, value any) error {
 	if err != nil {
 		return fmt.Errorf("WriteValue: failed to convert value to buffer: %w", err)
 	}
-
-	return c.WriteRaw(symbol.IndexGroup, symbol.IndexOffset, data)
+	_, err = c.WriteRaw(symbol.IndexGroup, symbol.IndexOffset, data)
+	return err
 }
 
 func (c *Client) convertValueToBuffer(value any, dataType types.AdsDataType) ([]byte, error) {

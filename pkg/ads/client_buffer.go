@@ -2,9 +2,12 @@ package ads
 
 import (
 	"encoding/binary"
+	"fmt"
 	"io"
 
 	"github.com/jarmoCluyse/ads-go/pkg/ads/constants"
+	"github.com/jarmoCluyse/ads-go/pkg/ads/types"
+	"github.com/jarmoCluyse/ads-go/pkg/ads/utils"
 )
 
 // receive handles incoming data from the ADS router.
@@ -40,48 +43,103 @@ func (c *Client) receive() {
 // process the received data
 func (c *Client) processReceiveBuffer() {
 	for {
-		// Check if we have enough data for AMS/TCP header (6 bytes)
-		if c.receiveBuffer.Len() < constants.AMSTCPHeaderLength {
-			return // Not enough data for header
-		}
-
-		// Read packet length from AMS/TCP header (bytes 2-5)
-		// We need to peek without advancing the buffer's read pointer
-		headerBytes := c.receiveBuffer.Bytes()[:constants.AMSTCPHeaderLength]
-		packetLength := binary.LittleEndian.Uint32(headerBytes[2:6])
-
-		// Total length of the full packet (AMS/TCP header + AMS header + ADS data)
-		totalPacketLength := constants.AMSTCPHeaderLength + packetLength
-
-		if packetLength < constants.AMSHeaderLength {
+		totalPacketLength, err := c.checkTcpPacketLength()
+		if err != nil {
 			return // Not enough data for full packet
 		}
-		// Check if we have the full packet
-		if c.receiveBuffer.Len() < int(totalPacketLength) {
-			return // Not enough data for full packet
-		}
-
 		// Extract the full packet
 		fullPacket := make([]byte, totalPacketLength)
 		c.receiveBuffer.Read(fullPacket)
 
-		// Now process the full packet
-		amsPacket := fullPacket[constants.AMSTCPHeaderLength:]
-		amsHeader := amsPacket[:constants.AMSHeaderLength]
-		amsData := amsPacket[constants.AMSHeaderLength:]
-
-		invokeID := binary.LittleEndian.Uint32(amsHeader[28:32])
-		c.logger.Debug("receive: Received packet", "invokeID", invokeID, "length", totalPacketLength, "fullPacket", fullPacket)
+		packet := c.parseAmsPacket(fullPacket)
+		c.logger.Debug("receive: Parsed AMS packet", "invokeID", packet.InvokeId, "data", packet)
 
 		c.mutex.Lock()
-		ch, ok := c.requests[invokeID]
+		ch, ok := c.requests[packet.InvokeId]
 		c.mutex.Unlock()
 
 		if ok {
-			c.logger.Debug("receive: Found channel for InvokeID, sending response.", "invokeID", invokeID)
-			ch <- amsData
+			c.logger.Debug("receive: Found channel for InvokeID, sending response.", "invokeID", packet.InvokeId)
+			if packet.ErrorCode != 0 {
+				c.logger.Error("receive: ADS error received", "invokeID", packet.InvokeId, "errorCode", packet.ErrorCode, "errorDesc", types.ADSError[packet.ErrorCode])
+				ch <- Response{Error: fmt.Errorf("ADS error: %s", types.ADSError[packet.ErrorCode])}
+			} else {
+				ch <- Response{Data: packet.Data}
+			}
 		} else {
-			c.logger.Warn("receive: No channel found for InvokeID, discarding packet.", "invokeID", invokeID)
+			c.logger.Warn("receive: No channel found for InvokeID, discarding packet.", "invokeID", packet.InvokeId)
 		}
 	}
+}
+
+// Read packet length from AMS/TCP header (bytes 2-5)
+// We need to peek without advancing the buffer's read pointer
+// to check if we received the full packet
+func (c *Client) checkTcpPacketLength() (packetLenght uint32, error error) {
+	// Check if we have enough data for AMS/TCP header (6 bytes)
+	if c.receiveBuffer.Len() < constants.AMSTCPHeaderLength {
+		return 0, fmt.Errorf("parseAmsTcpPacket: not enough data for AMSTCPHeaderLength")
+	}
+	// Read packet length from AMS/TCP header (bytes 2-5)
+	// We need to peek without advancing the buffer's read pointer
+	headerBytes := c.receiveBuffer.Bytes()[:constants.AMSTCPHeaderLength]
+	packetLength := binary.LittleEndian.Uint32(headerBytes[2:6])
+	// Total length of the full packet (AMS/TCP header + AMS header + ADS data)
+	totalPacketLength := constants.AMSTCPHeaderLength + packetLength
+	if packetLength < constants.AMSHeaderLength {
+		return 0, fmt.Errorf("parseAmsTcpPacket: not enough data for AMSHeaderLength")
+	}
+	// Check if we have the full packet
+	if c.receiveBuffer.Len() < int(totalPacketLength) {
+		return 0, fmt.Errorf("parseAmsTcpPacket: not enough data for full packet")
+	}
+	c.logger.Debug("Full package in buffer", "totalPacketLength", totalPacketLength)
+	return totalPacketLength, nil
+}
+
+type AmsPacket struct {
+	TargetAmsAddress AmsAddress
+	SourceAmsAddress AmsAddress
+	AdsCommand       types.ADSCommand
+	StateFlags       types.ADSStateFlags
+	DataLength       uint32
+	ErrorCode        uint32
+	InvokeId         uint32
+	Data             []byte
+}
+
+// parse the ams header
+// NOTE: we now at this point the length is correct
+func (c *Client) parseAmsPacket(data []byte) AmsPacket {
+	amsPacket := data[constants.AMSTCPHeaderLength:]
+	amsHeader := amsPacket[:constants.AMSHeaderLength]
+	amsData := amsPacket[constants.AMSHeaderLength:]
+
+	targetNetID := utils.ByteArrayToAmsNetIdStr(amsHeader[0:6])
+	targetPort := binary.LittleEndian.Uint16(amsHeader[6:8])
+	sourceNetID := utils.ByteArrayToAmsNetIdStr(amsHeader[8:14])
+	sourcePort := binary.LittleEndian.Uint16(amsHeader[14:16])
+	adsCommand := types.ADSCommand(amsHeader[16])
+	stateFlags := types.ADSStateFlags(amsHeader[18])
+	dataLength := binary.LittleEndian.Uint32(amsHeader[20:24])
+	errorCode := binary.LittleEndian.Uint32(amsHeader[24:28])
+	invokeID := binary.LittleEndian.Uint32(amsHeader[28:32])
+
+	return AmsPacket{
+		TargetAmsAddress: AmsAddress{
+			NetID: targetNetID,
+			Port:  targetPort,
+		},
+		SourceAmsAddress: AmsAddress{
+			NetID: sourceNetID,
+			Port:  sourcePort,
+		},
+		AdsCommand: adsCommand,
+		StateFlags: stateFlags,
+		DataLength: dataLength,
+		ErrorCode:  errorCode,
+		InvokeId:   invokeID,
+		Data:       amsData,
+	}
+
 }

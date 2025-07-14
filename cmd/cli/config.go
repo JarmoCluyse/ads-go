@@ -10,7 +10,7 @@ import (
 
 const (
 	DefaultAdsTargetNetID   = "192.168.157.131.1.1"
-	DefaultAdsTargetPort    = 851
+	DefaultAdsTargetPort    = 350
 	DefaultAdsRouterAddr    = "127.0.0.1:48898"
 	DefaultAdsTimeout       = 5 * time.Second
 	DefaultAdsAllowHalfOpen = true
@@ -56,11 +56,12 @@ func GetConfig() ads.ClientSettings {
 	}
 
 	settings := ads.ClientSettings{
-		TargetNetID:   adsTargetNetID,
-		TargetPort:    uint16(adsTargetPort),
-		RouterAddr:    adsRouterAddr,
-		Timeout:       timeout,
-		AllowHalfOpen: allowHalfOpen,
+		TargetNetID:       adsTargetNetID,
+		TargetPort:        uint16(adsTargetPort),
+		RouterAddr:        adsRouterAddr,
+		Timeout:           timeout,
+		AllowHalfOpen:     allowHalfOpen,
+		AdsSymbolsUseUtf8: true,
 	}
 	return settings
 }

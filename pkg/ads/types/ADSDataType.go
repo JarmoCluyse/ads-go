@@ -2,24 +2,25 @@ package types
 
 // AdsDataType represents an ADS data type.
 type AdsDataType struct {
-	Name        string
-	Type        string // Added Type field
-	Version     uint32
-	HashValue   uint32
-	TypeHash    uint32
-	Size        uint32
-	Offset      uint32
-	DataType    ADSDataType
-	Flags       ADSDataTypeFlags
-	ArrayDim    uint16
-	SubItems    []AdsDataType // Changed to AdsDataType
-	Comment     string
-	ArrayInfo   []AdsArrayInfo
-	EnumInfo    []AdsEnumInfo
-	Attributes  []AdsAttribute
-	Methods     []AdsMethod
-	GUID        string
-	CopyMask    uint32
+	Name          string
+	Type          string // Added Type field
+	Version       uint32
+	HashValue     uint32
+	TypeHash      uint32
+	Size          uint32
+	Offset        uint32
+	DataType      ADSDataType
+	Flags         ADSDataTypeFlags
+	ArrayDim      uint16
+	SubItems      []AdsDataType // Changed to AdsDataType
+	Comment       string
+	ArrayInfo     []AdsArrayInfo
+	EnumInfo      []AdsEnumInfo
+	Attributes    []AdsAttribute
+	Methods       []AdsMethod
+	GUID          string
+	ExtendedFlags uint32
+	CopyMask      uint32
 }
 
 // AdsDataTypeSubItem represents a sub-item within an ADS data type declaration.
@@ -43,14 +44,16 @@ type AdsDataTypeSubItem struct {
 
 // AdsArrayInfo represents information about an array.
 type AdsArrayInfo struct {
-	LowerBound int32
-	Elements   int32
+	StartIndex int32
+	Length     uint32
 }
 
 // AdsEnumInfo represents information about an enumeration.
 type AdsEnumInfo struct {
-	Name  string
-	Value int64
+	Name       string
+	Value      int64
+	Comment    string
+	Attributes []AdsAttribute
 }
 
 // AdsAttribute represents an attribute of a data type.

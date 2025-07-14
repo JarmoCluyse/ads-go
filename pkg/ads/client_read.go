@@ -15,6 +15,7 @@ func (c *Client) ReadValue(path string) (any, error) {
 	if err != nil {
 		return nil, fmt.Errorf("ReadValue: failed to get symbol: %w", err)
 	}
+	c.logger.Debug("symbol received", "symbol", symbol)
 
 	dataType, err := c.GetDataType(symbol.Type)
 	if err != nil {
@@ -80,9 +81,9 @@ func (c *Client) convertBufferToValue(data []byte, dataType types.AdsDataType) (
 		} else if dataType.ArrayDim > 0 {
 			// Handle arrays
 			var result []any
-			for i := 0; i < int(dataType.ArrayInfo[0].Elements); i++ {
+			for i := 0; i < int(dataType.ArrayInfo[0].Length); i++ {
 				// TODO: This is not correct for multi-dimensional arrays
-				elementSize := dataType.Size / uint32(dataType.ArrayInfo[0].Elements)
+				elementSize := dataType.Size / uint32(dataType.ArrayInfo[0].Length)
 				value, err := c.convertBufferToValue(data[uint32(i)*elementSize:], dataType)
 				if err != nil {
 					return nil, err

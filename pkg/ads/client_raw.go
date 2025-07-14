@@ -33,13 +33,13 @@ func (c *Client) ReadRaw(indexGroup uint32, indexOffset uint32, size uint32) ([]
 }
 
 // WriteRaw writes raw data to the ADS server.
-func (c *Client) WriteRaw(indexGroup uint32, indexOffset uint32, data []byte) error {
+func (c *Client) WriteRaw(indexGroup uint32, indexOffset uint32, data []byte) ([]byte, error) {
 	c.logger.Debug("WriteRaw: Writing raw data", "indexGroup", indexGroup, "indexOffset", indexOffset, "size", len(data))
 
 	buf := new(bytes.Buffer)
 	binary.Write(buf, binary.LittleEndian, indexGroup)
-	binary.LittleEndian.PutUint32(buf.Bytes()[4:8], indexOffset)
-	binary.LittleEndian.PutUint32(buf.Bytes()[8:12], uint32(len(data)))
+	binary.Write(buf, binary.LittleEndian, indexOffset)
+	binary.Write(buf, binary.LittleEndian, uint32(len(data)))
 	buf.Write(data)
 
 	req := AdsCommandRequest{
@@ -49,12 +49,12 @@ func (c *Client) WriteRaw(indexGroup uint32, indexOffset uint32, data []byte) er
 		TargetPort:  c.settings.TargetPort,
 	}
 
-	_, err := c.send(req)
+	res, err := c.send(req)
 	if err != nil {
-		return fmt.Errorf("WriteRaw: failed to send ADS command: %w", err)
+		return nil, fmt.Errorf("WriteRaw: failed to send ADS command: %w", err)
 	}
 
-	return nil
+	return res, nil
 }
 
 // ReadWriteRaw reads and writes raw data to the ADS server.
@@ -82,3 +82,4 @@ func (c *Client) ReadWriteRaw(indexGroup uint32, indexOffset uint32, readLength 
 
 	return response, nil
 }
+

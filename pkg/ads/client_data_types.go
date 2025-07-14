@@ -12,21 +12,10 @@ import (
 func (c *Client) GetDataType(name string) (types.AdsDataType, error) {
 	c.logger.Debug("GetDataType: Requested data type", "name", name)
 
-	// Check if the data type is already cached
-	if dataType, ok := c.plcDataTypes[name]; ok {
-		c.logger.Debug("GetDataType: Data type found in cache", "name", name)
-		return dataType, nil
-	}
-
-	c.logger.Debug("GetDataType: Data type not cached, building from target", "name", name)
-
 	dataType, err := c.BuildDataType(name)
 	if err != nil {
 		return types.AdsDataType{}, fmt.Errorf("GetDataType: failed to build data type: %w", err)
 	}
-
-	// Cache the data type
-	c.plcDataTypes[name] = dataType
 
 	c.logger.Debug("GetDataType: Data type built and cached", "name", name)
 	return dataType, nil
@@ -88,9 +77,10 @@ func (c *Client) buildDataTypeRecursive(dataType types.AdsDataType, isRootType b
 
 func (c *Client) getDataTypeDeclaration(name string) (types.AdsDataType, error) {
 	data := new(bytes.Buffer)
-	binary.Write(data, binary.LittleEndian, types.ADSReservedIndexGroupSymbolDataTypeUpload)
-	binary.Write(data, binary.LittleEndian, uint32(len(name)))
+	binary.Write(data, binary.LittleEndian, types.ADSReservedIndexGroupDataDataTypeInfoByNameEx)
+	binary.Write(data, binary.LittleEndian, uint32(0))
 	binary.Write(data, binary.LittleEndian, uint32(0xFFFFFFFF))
+	binary.Write(data, binary.LittleEndian, uint32(len(name)+1))
 	data.WriteString(name)
 
 	req := AdsCommandRequest{
@@ -105,277 +95,389 @@ func (c *Client) getDataTypeDeclaration(name string) (types.AdsDataType, error) 
 		return types.AdsDataType{}, fmt.Errorf("getDataTypeDeclaration: failed to send ADS command: %w", err)
 	}
 
-	return parseAdsDataTypeResponse(response)
+	dataType, err := c.ParseAdsDataTypeResponse(response)
+
+	return dataType, err
 }
 
-func parseAdsDataTypeResponse(data []byte) (types.AdsDataType, error) {
+func (c *Client) ParseAdsDataTypeResponse(data []byte) (types.AdsDataType, error) {
 	reader := bytes.NewReader(data)
-
-	// Skip the first 8 bytes (error code + length) which are part of the ADS response header
-	_, err := reader.Seek(8, 0)
-	if err != nil {
-		return types.AdsDataType{}, err
-	}
-
-	return parseAdsDataTypeInternal(reader)
-}
-
-func parseAdsDataTypeInternal(reader *bytes.Reader) (types.AdsDataType, error) {
 	var dataType types.AdsDataType
 
-	if err := binary.Read(reader, binary.LittleEndian, &dataType.Version); err != nil {
-		return types.AdsDataType{}, err
-	}
-	if err := binary.Read(reader, binary.LittleEndian, &dataType.HashValue); err != nil {
-		return types.AdsDataType{}, err
-	}
-	if err := binary.Read(reader, binary.LittleEndian, &dataType.TypeHash); err != nil {
-		return types.AdsDataType{}, err
-	}
-	if err := binary.Read(reader, binary.LittleEndian, &dataType.Size); err != nil {
-		return types.AdsDataType{}, err
-	}
-	if err := binary.Read(reader, binary.LittleEndian, &dataType.Offset); err != nil {
-		return types.AdsDataType{}, err
-	}
-	if err := binary.Read(reader, binary.LittleEndian, &dataType.DataType); err != nil {
-		return types.AdsDataType{}, err
-	}
-	if err := binary.Read(reader, binary.LittleEndian, &dataType.Flags); err != nil {
-		return types.AdsDataType{}, err
-	}
-	if err := binary.Read(reader, binary.LittleEndian, &dataType.ArrayDim); err != nil {
-		return types.AdsDataType{}, err
-	}
+	c.logger.Debug("Parsing AdsDataTypeResponse: starting header fields")
 
+	// NOTE: 0..3 Version
+	if err := binary.Read(reader, binary.LittleEndian, &dataType.Version); err != nil {
+		c.logger.Debug("Failed parsing Version", "error", err)
+		return types.AdsDataType{}, err
+	}
+	// NOTE: 4..7 Hash value of datatype for comparison
+	if err := binary.Read(reader, binary.LittleEndian, &dataType.HashValue); err != nil {
+		c.logger.Debug("Failed parsing HashValue", "error", err)
+		return types.AdsDataType{}, err
+	}
+	// NOTE: 8..11 hashValue of base type / Code Offset to setter Method (typeHashValue or offsSetCode)
+	if err := binary.Read(reader, binary.LittleEndian, &dataType.TypeHash); err != nil {
+		c.logger.Debug("Failed parsing TypeHash", "error", err)
+		return types.AdsDataType{}, err
+	}
+	// NOTE: 12..15 Size
+	if err := binary.Read(reader, binary.LittleEndian, &dataType.Size); err != nil {
+		c.logger.Debug("Failed parsing Size", "error", err)
+		return types.AdsDataType{}, err
+	}
+	// NOTE: 16..19 Offset
+	if err := binary.Read(reader, binary.LittleEndian, &dataType.Offset); err != nil {
+		c.logger.Debug("Failed parsing Offset", "error", err)
+		return types.AdsDataType{}, err
+	}
+	// NOTE: 20..23 ADS data type
+	if err := binary.Read(reader, binary.LittleEndian, &dataType.DataType); err != nil {
+		c.logger.Debug("Failed parsing DataType", "error", err)
+		return types.AdsDataType{}, err
+	}
+	// NOTE: 24..27 Flags
+	if err := binary.Read(reader, binary.LittleEndian, &dataType.Flags); err != nil {
+		c.logger.Debug("Failed parsing Flags", "error", err)
+		return types.AdsDataType{}, err
+	}
+	c.logger.Debug("Parsed header fields", "Version", dataType.Version, "HashValue", dataType.HashValue, "TypeHash", dataType.TypeHash, "Size", dataType.Size, "Offset", dataType.Offset, "DataType", dataType.DataType, "Flags", dataType.Flags)
+
+	// NOTE: 28..29 Name length
 	nameLen := uint16(0)
 	if err := binary.Read(reader, binary.LittleEndian, &nameLen); err != nil {
+		c.logger.Debug("Failed parsing NameLen", "error", err)
 		return types.AdsDataType{}, err
 	}
+	// NOTE: 30..31 Type length
+	typeLen := uint16(0)
+	if err := binary.Read(reader, binary.LittleEndian, &typeLen); err != nil {
+		c.logger.Debug("Failed parsing TypeLen", "error", err)
+		return types.AdsDataType{}, err
+	}
+	// NOTE: 32..33 Comment length
+	commentLen := uint16(0)
+	if err := binary.Read(reader, binary.LittleEndian, &commentLen); err != nil {
+		c.logger.Debug("Failed parsing CommentLen", "error", err)
+		return types.AdsDataType{}, err
+	}
+	// NOTE: 34..35 Array dimension
+	if err := binary.Read(reader, binary.LittleEndian, &dataType.ArrayDim); err != nil {
+		c.logger.Debug("Failed parsing ArrayDim", "error", err)
+		return types.AdsDataType{}, err
+	}
+	// NOTE: 36..37 Subitem count
+	numSubItems := uint16(0)
+	if err := binary.Read(reader, binary.LittleEndian, &numSubItems); err != nil {
+		c.logger.Debug("Failed parsing NumSubItems", "error", err)
+		return types.AdsDataType{}, err
+	}
+	c.logger.Debug("Parsed lengths and counts", "NameLen", nameLen, "TypeLen", typeLen, "CommentLen", commentLen, "ArrayDim", dataType.ArrayDim, "NumSubItems", numSubItems)
+
+	// NOTE: 38.. Data type name
 	name := make([]byte, nameLen)
-	if _, err := reader.Read(name); err != nil {
+	if err := binary.Read(reader, binary.LittleEndian, name); err != nil {
+		c.logger.Debug("Failed parsing Name value", "error", err)
 		return types.AdsDataType{}, err
 	}
 	dataType.Name = string(name)
-
-	commentLen := uint16(0)
-	if err := binary.Read(reader, binary.LittleEndian, &commentLen); err != nil {
+	// NOTE: .. Data type type
+	typeVal := make([]byte, typeLen)
+	if err := binary.Read(reader, binary.LittleEndian, typeVal); err != nil {
+		c.logger.Debug("Failed parsing Type value", "error", err)
 		return types.AdsDataType{}, err
 	}
+	dataType.Type = string(typeVal)
+	// NOTE: .. Data type comment
 	comment := make([]byte, commentLen)
-	if _, err := reader.Read(comment); err != nil {
+	if err := binary.Read(reader, binary.LittleEndian, comment); err != nil {
+		c.logger.Debug("Failed parsing Comment value", "error", err)
 		return types.AdsDataType{}, err
 	}
 	dataType.Comment = string(comment)
+	c.logger.Debug("Parsed identifier strings", "Name", dataType.Name, "Type", dataType.Type, "Comment", dataType.Comment)
 
-	// Parse Array Info
+	// NOTE: Parse Array Info
 	for i := 0; i < int(dataType.ArrayDim); i++ {
 		var arrayInfo types.AdsArrayInfo
-		if err := binary.Read(reader, binary.LittleEndian, &arrayInfo.LowerBound); err != nil {
+		if err := binary.Read(reader, binary.LittleEndian, &arrayInfo.StartIndex); err != nil {
+			c.logger.Debug("Failed parsing ArrayInfo StartIndex", "i", i, "error", err)
 			return types.AdsDataType{}, err
 		}
-		if err := binary.Read(reader, binary.LittleEndian, &arrayInfo.Elements); err != nil {
+		if err := binary.Read(reader, binary.LittleEndian, &arrayInfo.Length); err != nil {
+			c.logger.Debug("Failed parsing ArrayInfo Length", "i", i, "error", err)
 			return types.AdsDataType{}, err
 		}
 		dataType.ArrayInfo = append(dataType.ArrayInfo, arrayInfo)
 	}
+	c.logger.Debug("Parsed ArrayInfo", "ArrayInfo", dataType.ArrayInfo)
 
-	// Parse Sub-Items (declarations only, not full types)
-	numSubItems := uint16(0)
-	if err := binary.Read(reader, binary.LittleEndian, &numSubItems); err != nil {
-		return types.AdsDataType{}, err
-	}
-
+	// NOTE: Parse Subitems (children data types)
+	dataType.SubItems = make([]types.AdsDataType, 0, int(numSubItems))
 	for i := 0; i < int(numSubItems); i++ {
-		var subItem types.AdsDataTypeSubItem
-		if err := binary.Read(reader, binary.LittleEndian, &subItem.EntryLength); err != nil {
+		// Each subitem starts with its entry length (uint32)
+		entryLenBuf := make([]byte, 4)
+		if _, err := reader.Read(entryLenBuf); err != nil {
+			c.logger.Debug("Failed parsing Subitem entryLenBuf", "i", i, "error", err)
 			return types.AdsDataType{}, err
 		}
-		if err := binary.Read(reader, binary.LittleEndian, &subItem.Version); err != nil {
+		entryLen := binary.LittleEndian.Uint32(entryLenBuf)
+		if entryLen < 4 {
+			c.logger.Debug("Invalid subitem entryLen", "i", i, "entryLen", entryLen)
+			return types.AdsDataType{}, fmt.Errorf("invalid subitem entryLen: %d", entryLen)
+		}
+		subItemBuf := make([]byte, entryLen-4)
+		if _, err := reader.Read(subItemBuf); err != nil {
+			c.logger.Debug("Failed reading Subitem buffer", "i", i, "error", err)
 			return types.AdsDataType{}, err
 		}
-		if err := binary.Read(reader, binary.LittleEndian, &subItem.HashValue); err != nil {
+		// Recursively parse the subitem (children)
+		subItem, err := c.ParseAdsDataTypeResponse(subItemBuf)
+		if err != nil {
+			c.logger.Debug("Failed parsing Subitem recursively", "i", i, "error", err)
 			return types.AdsDataType{}, err
 		}
-		if err := binary.Read(reader, binary.LittleEndian, &subItem.TypeHash); err != nil {
-			return types.AdsDataType{}, err
-		}
-		if err := binary.Read(reader, binary.LittleEndian, &subItem.Size); err != nil {
-			return types.AdsDataType{}, err
-		}
-		if err := binary.Read(reader, binary.LittleEndian, &subItem.Offset); err != nil {
-			return types.AdsDataType{}, err
-		}
-		if err := binary.Read(reader, binary.LittleEndian, &subItem.DataType); err != nil {
-			return types.AdsDataType{}, err
-		}
-		if err := binary.Read(reader, binary.LittleEndian, &subItem.Flags); err != nil {
-			return types.AdsDataType{}, err
-		}
-		if err := binary.Read(reader, binary.LittleEndian, &subItem.ArrayDim); err != nil {
-			return types.AdsDataType{}, err
-		}
-		nameLen := uint16(0)
-		if err := binary.Read(reader, binary.LittleEndian, &nameLen); err != nil {
-			return types.AdsDataType{}, err
-		}
-		name := make([]byte, nameLen)
-		if _, err := reader.Read(name); err != nil {
-			return types.AdsDataType{}, err
-		}
-		subItem.Name = string(name)
+		dataType.SubItems = append(dataType.SubItems, subItem)
+	}
+	c.logger.Debug("Parsed subitems", "SubItemsCount", len(dataType.SubItems))
+	// All subitems (children) have been parsed recursively.
 
-		typeLen := uint16(0)
-		if err := binary.Read(reader, binary.LittleEndian, &typeLen); err != nil {
+	// NOTE: If flag TypeGuid set
+	if (dataType.Flags & types.ADSDataTypeFlagTypeGuid) != 0 {
+		c.logger.Debug("Parsing TypeGuid")
+		typeGuid := make([]byte, 16)
+		if _, err := reader.Read(typeGuid); err != nil {
+			c.logger.Debug("Failed reading TypeGuid", "error", err)
 			return types.AdsDataType{}, err
 		}
-		typeName := make([]byte, typeLen)
-		if _, err := reader.Read(typeName); err != nil {
-			return types.AdsDataType{}, err
-		}
-		subItem.Type = string(typeName)
-
-		commentLen := uint16(0)
-		if err := binary.Read(reader, binary.LittleEndian, &commentLen); err != nil {
-			return types.AdsDataType{}, err
-		}
-		comment := make([]byte, commentLen)
-		if _, err := reader.Read(comment); err != nil {
-			return types.AdsDataType{}, err
-		}
-		subItem.Comment = string(comment)
-
-		// Append the sub-item declaration. buildDataTypeRecursive will build the full type later.
-		// For now, we need to create a new AdsDataType from AdsDataTypeSubItem.
-		dataType.SubItems = append(dataType.SubItems, types.AdsDataType{
-			Name: subItem.Name,
-			Type: subItem.Type,
-			Size: subItem.Size,
-			Offset: subItem.Offset,
-			DataType: subItem.DataType,
-			Flags: types.ADSDataTypeFlags(subItem.Flags),
-			ArrayDim: subItem.ArrayDim,
-			Comment: subItem.Comment,
-		})
+		dataType.GUID = fmt.Sprintf("%x", typeGuid)
+		c.logger.Debug("Parsed TypeGuid", "GUID", dataType.GUID)
 	}
 
-	// Parse Enum Info
-	numEnumInfos := uint16(0)
-	if err := binary.Read(reader, binary.LittleEndian, &numEnumInfos); err != nil {
-		return types.AdsDataType{}, err
-	}
-
-	for i := 0; i < int(numEnumInfos); i++ {
-		var enumInfo types.AdsEnumInfo
-		nameLen := uint16(0)
-		if err := binary.Read(reader, binary.LittleEndian, &nameLen); err != nil {
-			return types.AdsDataType{}, err
-		}
-		name := make([]byte, nameLen)
-		if _, err := reader.Read(name); err != nil {
-			return types.AdsDataType{}, err
-		}
-		enumInfo.Name = string(name)
-
-		if err := binary.Read(reader, binary.LittleEndian, &enumInfo.Value); err != nil {
-			return types.AdsDataType{}, err
-		}
-		dataType.EnumInfo = append(dataType.EnumInfo, enumInfo)
-	}
-
-	// Parse Attributes
-	numAttributes := uint16(0)
-	if err := binary.Read(reader, binary.LittleEndian, &numAttributes); err != nil {
-		return types.AdsDataType{}, err
-	}
-
-	for i := 0; i < int(numAttributes); i++ {
-		var attribute types.AdsAttribute
-		nameLen := uint16(0)
-		if err := binary.Read(reader, binary.LittleEndian, &nameLen); err != nil {
-			return types.AdsDataType{}, err
-		}
-		name := make([]byte, nameLen)
-		if _, err := reader.Read(name); err != nil {
-			return types.AdsDataType{}, err
-		}
-		attribute.Name = string(name)
-
-		valueLen := uint16(0)
-		if err := binary.Read(reader, binary.LittleEndian, &valueLen); err != nil {
-			return types.AdsDataType{}, err
-		}
-		value := make([]byte, valueLen)
-		if _, err := reader.Read(value); err != nil {
-			return types.AdsDataType{}, err
-		}
-		attribute.Value = string(value)
-		dataType.Attributes = append(dataType.Attributes, attribute)
-	}
-
-	// Parse Methods
-	numMethods := uint16(0)
-	if err := binary.Read(reader, binary.LittleEndian, &numMethods); err != nil {
-		return types.AdsDataType{}, err
-	}
-
-	for i := 0; i < int(numMethods); i++ {
-		var method types.AdsMethod
-		// Parse method name
-		nameLen := uint16(0)
-		if err := binary.Read(reader, binary.LittleEndian, &nameLen); err != nil {
-			return types.AdsDataType{}, err
-		}
-		name := make([]byte, nameLen)
-		if _, err := reader.Read(name); err != nil {
-			return types.AdsDataType{}, err
-		}
-		method.Name = string(name)
-
-		// Parse return type
-		returnTypeLen := uint16(0)
-		if err := binary.Read(reader, binary.LittleEndian, &returnTypeLen); err != nil {
-			return types.AdsDataType{}, err
-		}
-		returnType := make([]byte, returnTypeLen)
-		if _, err := reader.Read(returnType); err != nil {
-			return types.AdsDataType{}, err
-		}
-		method.ReturnType = string(returnType)
-
-		// Parse params
-		numParams := uint16(0)
-		if err := binary.Read(reader, binary.LittleEndian, &numParams); err != nil {
-			return types.AdsDataType{}, err
-		}
-
-		for j := 0; j < int(numParams); j++ {
-			var param types.AdsMethodParam
-			// Parse param name
-			paramNameLen := uint16(0)
-			if err := binary.Read(reader, binary.LittleEndian, &paramNameLen); err != nil {
+	// NOTE: If flag CopyMask set
+	if (dataType.Flags & types.ADSDataTypeFlagCopyMask) != 0 {
+		c.logger.Debug("Parsing CopyMask", "Size", dataType.Size)
+		// CopyMask is of size dataType.Size
+		if dataType.Size > 0 {
+			if _, err := reader.Seek(int64(dataType.Size), 1); err != nil {
+				c.logger.Debug("Failed seeking CopyMask", "error", err)
 				return types.AdsDataType{}, err
 			}
-			paramName := make([]byte, paramNameLen)
-			if _, err := reader.Read(paramName); err != nil {
-				return types.AdsDataType{}, err
-			}
-			param.Name = string(paramName)
-
-			// Parse param type
-			paramTypeLen := uint16(0)
-			if err := binary.Read(reader, binary.LittleEndian, &paramTypeLen); err != nil {
-				return types.AdsDataType{}, err
-			}
-			paramType := make([]byte, paramTypeLen)
-			if _, err := reader.Read(paramType); err != nil {
-				return types.AdsDataType{}, err
-			}
-			param.Type = string(paramType)
-			method.Params = append(method.Params, param)
+			c.logger.Debug("Skipped CopyMask bytes", "count", dataType.Size)
 		}
-		dataType.Methods = append(dataType.Methods, method)
 	}
 
+	// NOTE: If flag MethodInfos set
+	if (dataType.Flags & types.ADSDataTypeFlagMethodInfos) != 0 {
+		c.logger.Debug("Parsing MethodInfos")
+		methodCount := uint16(0)
+		if err := binary.Read(reader, binary.LittleEndian, &methodCount); err != nil {
+			c.logger.Debug("Failed reading MethodInfo count", "error", err)
+			return types.AdsDataType{}, err
+		}
+		for i := 0; i < int(methodCount); i++ {
+			entryLen := uint32(0)
+			if err := binary.Read(reader, binary.LittleEndian, &entryLen); err != nil {
+				c.logger.Debug("Failed reading MethodInfo entryLen", "i", i, "error", err)
+				return types.AdsDataType{}, err
+			}
+			methodBuf := make([]byte, entryLen-4)
+			if _, err := reader.Read(methodBuf); err != nil {
+				c.logger.Debug("Failed reading MethodInfo buffer", "i", i, "error", err)
+				return types.AdsDataType{}, err
+			}
+			// Not parsed in detail
+		}
+		c.logger.Debug("Parsed MethodInfos", "Count", methodCount)
+	}
+
+	// NOTE: If flag Attributes set
+	if (dataType.Flags & types.ADSDataTypeFlagAttributes) != 0 {
+		c.logger.Debug("Parsing Attributes")
+		attributeCount := uint16(0)
+		if err := binary.Read(reader, binary.LittleEndian, &attributeCount); err != nil {
+			c.logger.Debug("Failed reading Attribute count", "error", err)
+			return types.AdsDataType{}, err
+		}
+		dataType.Attributes = make([]types.AdsAttribute, 0, attributeCount)
+		for i := 0; i < int(attributeCount); i++ {
+			nameLen := uint8(0)
+			if err := binary.Read(reader, binary.LittleEndian, &nameLen); err != nil {
+				c.logger.Debug("Failed reading Attribute nameLen", "i", i, "error", err)
+				return types.AdsDataType{}, err
+			}
+			valLen := uint8(0)
+			if err := binary.Read(reader, binary.LittleEndian, &valLen); err != nil {
+				c.logger.Debug("Failed reading Attribute valLen", "i", i, "error", err)
+				return types.AdsDataType{}, err
+			}
+			nameBuf := make([]byte, int(nameLen)+1)
+			if _, err := reader.Read(nameBuf); err != nil {
+				c.logger.Debug("Failed reading Attribute nameBuf", "i", i, "error", err)
+				return types.AdsDataType{}, err
+			}
+			valBuf := make([]byte, int(valLen)+1)
+			if _, err := reader.Read(valBuf); err != nil {
+				c.logger.Debug("Failed reading Attribute valBuf", "i", i, "error", err)
+				return types.AdsDataType{}, err
+			}
+			dataType.Attributes = append(dataType.Attributes, types.AdsAttribute{
+				Name:  string(nameBuf[:len(nameBuf)-1]),
+				Value: string(valBuf[:len(valBuf)-1]),
+			})
+		}
+		c.logger.Debug("Parsed Attributes", "Attributes", dataType.Attributes)
+	}
+
+	// NOTE: If flag EnumInfos set
+	if (dataType.Flags & types.ADSDataTypeFlagEnumInfos) != 0 {
+		c.logger.Debug("Parsing EnumInfo")
+		enumInfoCount := uint16(0)
+		if err := binary.Read(reader, binary.LittleEndian, &enumInfoCount); err != nil {
+			c.logger.Debug("Failed reading EnumInfo count", "error", err)
+			return types.AdsDataType{}, err
+		}
+		dataType.EnumInfo = make([]types.AdsEnumInfo, 0, enumInfoCount)
+		for i := 0; i < int(enumInfoCount); i++ {
+			nameLen := uint8(0)
+			if err := binary.Read(reader, binary.LittleEndian, &nameLen); err != nil {
+				c.logger.Debug("Failed reading EnumInfo nameLen", "i", i, "error", err)
+				return types.AdsDataType{}, err
+			}
+			nameBuf := make([]byte, int(nameLen)+1)
+			if _, err := reader.Read(nameBuf); err != nil {
+				c.logger.Debug("Failed reading EnumInfo nameBuf", "i", i, "error", err)
+				return types.AdsDataType{}, err
+			}
+			valBuf := make([]byte, dataType.Size)
+			if _, err := reader.Read(valBuf); err != nil {
+				c.logger.Debug("Failed reading EnumInfo valBuf", "i", i, "error", err)
+				return types.AdsDataType{}, err
+			}
+			var value int64
+			bufLen := len(valBuf)
+			if bufLen > 0 {
+				switch bufLen {
+				case 1:
+					value = int64(valBuf[0])
+				case 2:
+					value = int64(binary.LittleEndian.Uint16(valBuf))
+				case 4:
+					value = int64(binary.LittleEndian.Uint32(valBuf))
+				case 8:
+					value = int64(binary.LittleEndian.Uint64(valBuf))
+				default:
+					padded := make([]byte, 8)
+					copy(padded, valBuf)
+					value = int64(binary.LittleEndian.Uint64(padded))
+				}
+			}
+			dataType.EnumInfo = append(dataType.EnumInfo, types.AdsEnumInfo{
+				Name:  string(nameBuf[:len(nameBuf)-1]),
+				Value: value,
+			})
+		}
+		c.logger.Debug("Parsed EnumInfos", "EnumInfo", dataType.EnumInfo)
+	}
+
+	// NOTE: If flag RefactorInfo set
+	if (dataType.Flags & types.ADSDataTypeFlagRefactorInfo) != 0 {
+		c.logger.Warn("Flag RefactorInfo set, not implemented")
+	}
+
+	// NOTE: If flag ExtendedFlags set
+	if (dataType.Flags & types.ADSDataTypeFlagExtendedFlags) != 0 {
+		c.logger.Debug("Parsing ExtendedFlags")
+		var extFlags uint32
+		if err := binary.Read(reader, binary.LittleEndian, &extFlags); err != nil {
+			c.logger.Debug("Failed reading ExtendedFlags", "error", err)
+			return types.AdsDataType{}, err
+		}
+		dataType.ExtendedFlags = extFlags
+		c.logger.Debug("Parsed ExtendedFlags", "ExtendedFlags", extFlags)
+	}
+
+	// NOTE: If flag DeRefTypeItem set
+	if (dataType.Flags & types.ADSDataTypeFlagDeRefTypeItem) != 0 {
+		c.logger.Debug("Parsing DeRefTypeItem")
+		var count uint16
+		if err := binary.Read(reader, binary.LittleEndian, &count); err != nil {
+			c.logger.Debug("Failed reading DeRefTypeItem count", "error", err)
+			return types.AdsDataType{}, err
+		}
+		for i := 0; i < int(count); i++ {
+			guid := make([]byte, 16)
+			if _, err := reader.Read(guid); err != nil {
+				c.logger.Debug("Failed reading DeRefTypeItem guid", "i", i, "error", err)
+				return types.AdsDataType{}, err
+			}
+			// Ignored for now
+		}
+		c.logger.Debug("Parsed DeRefTypeItem GUIDs", "Count", count)
+	}
+
+	// NOTE: If flag ExtendedEnumInfos set
+	if (dataType.Flags&types.ADSDataTypeFlagExtendedEnumInfos) != 0 && dataType.EnumInfo != nil {
+		c.logger.Debug("Parsing ExtendedEnumInfos")
+		for i := 0; i < len(dataType.EnumInfo); i++ {
+			entryLen := uint16(0)
+			if err := binary.Read(reader, binary.LittleEndian, &entryLen); err != nil {
+				c.logger.Debug("Failed reading ExtendedEnumInfos entryLen", "i", i, "error", err)
+				return types.AdsDataType{}, err
+			}
+			commentLen := uint8(0)
+			if err := binary.Read(reader, binary.LittleEndian, &commentLen); err != nil {
+				c.logger.Debug("Failed reading ExtendedEnumInfos commentLen", "i", i, "error", err)
+				return types.AdsDataType{}, err
+			}
+			attrCount := uint8(0)
+			if err := binary.Read(reader, binary.LittleEndian, &attrCount); err != nil {
+				c.logger.Debug("Failed reading ExtendedEnumInfos attrCount", "i", i, "error", err)
+				return types.AdsDataType{}, err
+			}
+			commentBuf := make([]byte, int(commentLen)+1)
+			if _, err := reader.Read(commentBuf); err != nil {
+				c.logger.Debug("Failed reading ExtendedEnumInfos commentBuf", "i", i, "error", err)
+				return types.AdsDataType{}, err
+			}
+			attributes := make([]types.AdsAttribute, 0, attrCount)
+			for a := 0; a < int(attrCount); a++ {
+				nameLen := uint8(0)
+				if err := binary.Read(reader, binary.LittleEndian, &nameLen); err != nil {
+					c.logger.Debug("Failed reading ExtendedEnumInfos attr nameLen", "i", i, "a", a, "error", err)
+					return types.AdsDataType{}, err
+				}
+				valLen := uint8(0)
+				if err := binary.Read(reader, binary.LittleEndian, &valLen); err != nil {
+					c.logger.Debug("Failed reading ExtendedEnumInfos attr valLen", "i", i, "a", a, "error", err)
+					return types.AdsDataType{}, err
+				}
+				nameBuf := make([]byte, int(nameLen)+1)
+				if _, err := reader.Read(nameBuf); err != nil {
+					c.logger.Debug("Failed reading ExtendedEnumInfos attr nameBuf", "i", i, "a", a, "error", err)
+					return types.AdsDataType{}, err
+				}
+				valBuf := make([]byte, int(valLen)+1)
+				if _, err := reader.Read(valBuf); err != nil {
+					c.logger.Debug("Failed reading ExtendedEnumInfos attr valBuf", "i", i, "a", a, "error", err)
+					return types.AdsDataType{}, err
+				}
+				attributes = append(attributes, types.AdsAttribute{
+					Name:  string(nameBuf[:len(nameBuf)-1]),
+					Value: string(valBuf[:len(valBuf)-1]),
+				})
+			}
+			dataType.EnumInfo[i].Comment = string(commentBuf[:len(commentBuf)-1])
+			dataType.EnumInfo[i].Attributes = attributes
+		}
+		c.logger.Debug("Parsed ExtendedEnumInfos", "EnumInfo", dataType.EnumInfo)
+	}
+
+	// NOTE: If flag SoftwareProtectionLevels set
+	if (dataType.Flags & types.ADSDataTypeFlagSoftwareProtectionLvls) != 0 {
+		c.logger.Warn("Flag SoftwareProtectionLevels set, not implemented")
+	}
+
+	c.logger.Debug("ParseAdsDataTypeResponse complete", "DataType.Name", dataType.Name, "Type", dataType.Type, "Subitems", len(dataType.SubItems), "Flags", dataType.Flags)
 	return dataType, nil
 }

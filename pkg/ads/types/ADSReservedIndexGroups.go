@@ -2,7 +2,7 @@ package types
 
 // Reserved ADS index groups
 // Source: TwinCAT.Ads.dll By Beckhoff
-type ADSReservedIndexGroup int
+type ADSReservedIndexGroup uint32
 
 const (
 	ADSReservedIndexGroupPlcRWIB                  ADSReservedIndexGroup = 16384  // 0x00004000

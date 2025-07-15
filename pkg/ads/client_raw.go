@@ -9,7 +9,7 @@ import (
 )
 
 // ReadRaw reads raw data from the ADS server.
-func (c *Client) ReadRaw(indexGroup uint32, indexOffset uint32, size uint32) ([]byte, error) {
+func (c *Client) ReadRaw(port uint16, indexGroup uint32, indexOffset uint32, size uint32) ([]byte, error) {
 	c.logger.Debug("ReadRaw: Reading raw data", "indexGroup", indexGroup, "indexOffset", indexOffset, "size", size)
 
 	data := new(bytes.Buffer)
@@ -21,7 +21,7 @@ func (c *Client) ReadRaw(indexGroup uint32, indexOffset uint32, size uint32) ([]
 		Command:     types.ADSCommandRead,
 		Data:        data.Bytes(),
 		TargetNetID: c.settings.TargetNetID,
-		TargetPort:  c.settings.TargetPort,
+		TargetPort:  port,
 	}
 
 	response, err := c.send(req)
@@ -33,7 +33,7 @@ func (c *Client) ReadRaw(indexGroup uint32, indexOffset uint32, size uint32) ([]
 }
 
 // WriteRaw writes raw data to the ADS server.
-func (c *Client) WriteRaw(indexGroup uint32, indexOffset uint32, data []byte) ([]byte, error) {
+func (c *Client) WriteRaw(port uint16, indexGroup uint32, indexOffset uint32, data []byte) ([]byte, error) {
 	c.logger.Debug("WriteRaw: Writing raw data", "indexGroup", indexGroup, "indexOffset", indexOffset, "size", len(data))
 
 	buf := new(bytes.Buffer)
@@ -46,7 +46,7 @@ func (c *Client) WriteRaw(indexGroup uint32, indexOffset uint32, data []byte) ([
 		Command:     types.ADSCommandWrite,
 		Data:        buf.Bytes(),
 		TargetNetID: c.settings.TargetNetID,
-		TargetPort:  c.settings.TargetPort,
+		TargetPort:  port,
 	}
 
 	res, err := c.send(req)
@@ -58,7 +58,7 @@ func (c *Client) WriteRaw(indexGroup uint32, indexOffset uint32, data []byte) ([
 }
 
 // ReadWriteRaw reads and writes raw data to the ADS server.
-func (c *Client) ReadWriteRaw(indexGroup uint32, indexOffset uint32, readLength uint32, writeData []byte) ([]byte, error) {
+func (c *Client) ReadWriteRaw(port uint16, indexGroup uint32, indexOffset uint32, readLength uint32, writeData []byte) ([]byte, error) {
 	c.logger.Debug("ReadWriteRaw: Reading and writing raw data", "indexGroup", indexGroup, "indexOffset", indexOffset, "readLength", readLength, "writeDataSize", len(writeData))
 
 	buf := new(bytes.Buffer)
@@ -72,7 +72,7 @@ func (c *Client) ReadWriteRaw(indexGroup uint32, indexOffset uint32, readLength 
 		Command:     types.ADSCommandReadWrite,
 		Data:        buf.Bytes(),
 		TargetNetID: c.settings.TargetNetID,
-		TargetPort:  c.settings.TargetPort,
+		TargetPort:  port,
 	}
 
 	response, err := c.send(req)
@@ -82,4 +82,3 @@ func (c *Client) ReadWriteRaw(indexGroup uint32, indexOffset uint32, readLength 
 
 	return response, nil
 }
-

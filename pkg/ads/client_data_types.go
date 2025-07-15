@@ -9,10 +9,10 @@ import (
 )
 
 // GetDataType retrieves and builds a complete data type definition from the ADS server.
-func (c *Client) GetDataType(name string) (types.AdsDataType, error) {
+func (c *Client) GetDataType(name string, port uint16) (types.AdsDataType, error) {
 	c.logger.Debug("GetDataType: Requested data type", "name", name)
 
-	dataType, err := c.BuildDataType(name)
+	dataType, err := c.BuildDataType(name, port)
 	if err != nil {
 		return types.AdsDataType{}, fmt.Errorf("GetDataType: failed to build data type: %w", err)
 	}
@@ -22,18 +22,18 @@ func (c *Client) GetDataType(name string) (types.AdsDataType, error) {
 }
 
 // BuildDataType retrieves and builds a complete data type definition from the ADS server.
-func (c *Client) BuildDataType(name string) (types.AdsDataType, error) {
+func (c *Client) BuildDataType(name string, port uint16) (types.AdsDataType, error) {
 	c.logger.Debug("BuildDataType: Building data type", "name", name)
 
-	dataType, err := c.getDataTypeDeclaration(name)
+	dataType, err := c.getDataTypeDeclaration(name, port)
 	if err != nil {
 		return types.AdsDataType{}, fmt.Errorf("BuildDataType: failed to get data type declaration: %w", err)
 	}
 
-	return c.buildDataTypeRecursive(dataType, true)
+	return c.buildDataTypeRecursive(dataType, port, true)
 }
 
-func (c *Client) buildDataTypeRecursive(dataType types.AdsDataType, isRootType bool) (types.AdsDataType, error) {
+func (c *Client) buildDataTypeRecursive(dataType types.AdsDataType, port uint16, isRootType bool) (types.AdsDataType, error) {
 	// If the data type has sub-items, recursively build them
 	if len(dataType.SubItems) > 0 {
 		builtType := dataType
@@ -41,7 +41,7 @@ func (c *Client) buildDataTypeRecursive(dataType types.AdsDataType, isRootType b
 
 		for _, subItemDeclaration := range dataType.SubItems {
 			// Recursively build the sub-item's data type using its Type field
-			builtSubItemType, err := c.BuildDataType(subItemDeclaration.Type)
+			builtSubItemType, err := c.BuildDataType(subItemDeclaration.Type, port)
 			if err != nil {
 				return types.AdsDataType{}, err
 			}
@@ -56,7 +56,7 @@ func (c *Client) buildDataTypeRecursive(dataType types.AdsDataType, isRootType b
 		return builtType, nil
 	} else if dataType.ArrayDim > 0 {
 		// Data type is an array - get array subtype
-		builtType, err := c.BuildDataType(dataType.Type)
+		builtType, err := c.BuildDataType(dataType.Type, port)
 		if err != nil {
 			return types.AdsDataType{}, err
 		}
@@ -75,7 +75,7 @@ func (c *Client) buildDataTypeRecursive(dataType types.AdsDataType, isRootType b
 	return dataType, nil
 }
 
-func (c *Client) getDataTypeDeclaration(name string) (types.AdsDataType, error) {
+func (c *Client) getDataTypeDeclaration(name string, port uint16) (types.AdsDataType, error) {
 	data := new(bytes.Buffer)
 	binary.Write(data, binary.LittleEndian, types.ADSReservedIndexGroupDataDataTypeInfoByNameEx)
 	binary.Write(data, binary.LittleEndian, uint32(0))
@@ -87,7 +87,7 @@ func (c *Client) getDataTypeDeclaration(name string) (types.AdsDataType, error) 
 		Command:     types.ADSCommandReadWrite,
 		Data:        data.Bytes(),
 		TargetNetID: c.settings.TargetNetID,
-		TargetPort:  c.settings.TargetPort,
+		TargetPort:  port,
 	}
 
 	response, err := c.send(req)

@@ -8,15 +8,15 @@ import (
 	"github.com/jarmoCluyse/ads-go/pkg/ads/types"
 )
 
-func (c *Client) WriteValue(path string, value any) error {
+func (c *Client) WriteValue(port uint16, path string, value any) error {
 	c.logger.Debug("WriteValue: Writing value", "path", path)
 
-	symbol, err := c.GetSymbol(path)
+	symbol, err := c.GetSymbol(port, path)
 	if err != nil {
 		return fmt.Errorf("WriteValue: failed to get symbol: %w", err)
 	}
 
-	dataType, err := c.GetDataType(symbol.Type)
+	dataType, err := c.GetDataType(symbol.Type, port)
 	if err != nil {
 		return fmt.Errorf("WriteValue: failed to get data type: %w", err)
 	}
@@ -25,7 +25,7 @@ func (c *Client) WriteValue(path string, value any) error {
 	if err != nil {
 		return fmt.Errorf("WriteValue: failed to convert value to buffer: %w", err)
 	}
-	_, err = c.WriteRaw(symbol.IndexGroup, symbol.IndexOffset, data)
+	_, err = c.WriteRaw(port, symbol.IndexGroup, symbol.IndexOffset, data)
 	return err
 }
 

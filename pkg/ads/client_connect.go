@@ -30,15 +30,12 @@ func (c *Client) Connect() error {
 	// Start receiving
 	go c.receive()
 
+	// TODO: check if this is needed
 	if err := c.setupPlcConnection(); err != nil {
-		if !c.settings.AllowHalfOpen {
-			c.conn.Close()
-			c.logger.Error("Connect: Failed to setup PLC connection and AllowHalfOpen is false", "error", err)
-			return fmt.Errorf("failed to setup PLC connection: %w", err)
-		}
-		c.logger.Warn("Connect: allowHalfOpen is active and PLC connection failed", "error", err)
+		c.logger.Warn("PLC setup nor complete", "error", err)
 	}
-	c.logger.Debug("Connect: PLC connection setup complete (or half-open allowed).")
+
+	c.logger.Debug("Connect: PLC connection setup complete")
 
 	return nil
 }

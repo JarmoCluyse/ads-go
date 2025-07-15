@@ -29,10 +29,8 @@ type Client struct {
 // ClientSettings holds the settings for the ADS client.
 type ClientSettings struct {
 	TargetNetID       string
-	TargetPort        uint16
 	RouterAddr        string
 	Timeout           time.Duration
-	AllowHalfOpen     bool
 	AdsSymbolsUseUtf8 bool
 }
 

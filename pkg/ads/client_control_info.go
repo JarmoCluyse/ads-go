@@ -25,7 +25,7 @@ func (c *Client) ReadState() (*AdsReadStateResponse, error) {
 		Command:     types.ADSCommandReadState,
 		Data:        []byte{},
 		TargetNetID: c.settings.TargetNetID,
-		TargetPort:  c.settings.TargetPort,
+		TargetPort:  types.ADSReservedPortSystemService, // Explicitly target SystemService port
 	}
 	data, err := c.send(req)
 	if err != nil {
@@ -168,7 +168,7 @@ func (c *Client) ReadDeviceInfo() (*AdsReadDeviceInfoResponse, error) {
 		Command:     types.ADSCommandReadDeviceInfo,
 		Data:        []byte{},
 		TargetNetID: c.settings.TargetNetID,
-		TargetPort:  c.settings.TargetPort,
+		TargetPort:  types.ADSReservedPortSystemService, // Explicitly target SystemService port
 	}
 	data, err := c.send(req)
 	if err != nil {

@@ -68,12 +68,9 @@ var handlers = map[string]func([]string, *ads.Client){
 		}
 	},
 	"read_value": func(args []string, client *ads.Client) {
-		// if len(args) < 1 {
-		// 	fmt.Println("Invalid value for read")
-		// 	return
-		// }
 		data := "service_interface.input.in_servicetool_serviceint_cmd"
-		value, err := client.ReadValue(data)
+		var port uint16 = 350
+		value, err := client.ReadValue(port, data)
 		if err != nil {
 			fmt.Println("Error reading system state:", err)
 		}
@@ -82,8 +79,9 @@ var handlers = map[string]func([]string, *ads.Client){
 	"read_raw": func(args []string, client *ads.Client) {
 		indexGroup := uint32(0x1010290)
 		indexOffset := uint32(0x80000001)
+		var port uint16 = 350
 		size := uint32(1) // adjust size as needed
-		result, err := client.ReadRaw(indexGroup, indexOffset, size)
+		result, err := client.ReadRaw(port, indexGroup, indexOffset, size)
 		if err != nil {
 			fmt.Println("Error reading raw data:", err)
 			return
@@ -93,8 +91,9 @@ var handlers = map[string]func([]string, *ads.Client){
 	"write_raw": func(args []string, client *ads.Client) {
 		indexGroup := uint32(0x1010290)
 		indexOffset := uint32(0x80000001)
+		var port uint16 = 350
 		data := []byte{36}
-		response, err := client.WriteRaw(indexGroup, indexOffset, data)
+		response, err := client.WriteRaw(port, indexGroup, indexOffset, data)
 		if err != nil {
 			fmt.Println("Error writing raw data:", err)
 			return

@@ -8,21 +8,21 @@ import (
 	"github.com/jarmoCluyse/ads-go/pkg/ads/types"
 )
 
-func (c *Client) ReadValue(path string) (any, error) {
+func (c *Client) ReadValue(port uint16, path string) (any, error) {
 	c.logger.Debug("ReadValue: Reading value", "path", path)
 
-	symbol, err := c.GetSymbol(path)
+	symbol, err := c.GetSymbol(port, path)
 	if err != nil {
 		return nil, fmt.Errorf("ReadValue: failed to get symbol: %w", err)
 	}
 	c.logger.Debug("symbol received", "symbol", symbol)
 
-	dataType, err := c.GetDataType(symbol.Type)
+	dataType, err := c.GetDataType(symbol.Type, port)
 	if err != nil {
 		return nil, fmt.Errorf("ReadValue: failed to get data type: %w", err)
 	}
 
-	data, err := c.ReadRaw(symbol.IndexGroup, symbol.IndexOffset, symbol.Size)
+	data, err := c.ReadRaw(port, symbol.IndexGroup, symbol.IndexOffset, symbol.Size)
 	if err != nil {
 		return nil, fmt.Errorf("ReadValue: failed to read raw data: %w", err)
 	}

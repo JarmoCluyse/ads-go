@@ -10,7 +10,7 @@ import (
 )
 
 // GetSymbol retrieves information about a symbol from the ADS server.
-func (c *Client) GetSymbol(path string) (types.AdsSymbol, error) {
+func (c *Client) GetSymbol(port uint16, path string) (types.AdsSymbol, error) {
 	c.logger.Debug("GetSymbol: Requested symbol", "path", path)
 
 	// Create the request data
@@ -19,13 +19,14 @@ func (c *Client) GetSymbol(path string) (types.AdsSymbol, error) {
 	binary.Write(data, binary.LittleEndian, uint32(0))
 	binary.Write(data, binary.LittleEndian, uint32(0xFFFFFFFF))
 	binary.Write(data, binary.LittleEndian, uint32(len(path)+1))
-	data.WriteString(path)
+	data.Write(utils.EncodeStringToPlcStringBuffer(path, c.settings.AdsSymbolsUseUtf8))
+	binary.Write(data, binary.LittleEndian, uint8(0))
 
 	req := AdsCommandRequest{
 		Command:     types.ADSCommandReadWrite,
 		Data:        data.Bytes(),
 		TargetNetID: c.settings.TargetNetID,
-		TargetPort:  c.settings.TargetPort,
+		TargetPort:  port,
 	}
 
 	response, err := c.send(req)
@@ -35,7 +36,7 @@ func (c *Client) GetSymbol(path string) (types.AdsSymbol, error) {
 	}
 	c.logger.Debug("GetSymbol: Full response received from ADS server", "response", fmt.Sprintf("%x", response), "length", len(response))
 
-	symbol, err := c.parseAdsSymbol(response[4:])
+	symbol, err := c.parseAdsSymbol(response)
 	if err != nil {
 		c.logger.Error("GetSymbol: Failed to parse symbol from response", "error", err)
 		return types.AdsSymbol{}, fmt.Errorf("GetSymbol: failed to parse symbol from response: %w", err)

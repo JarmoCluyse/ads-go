@@ -76,6 +76,20 @@ var handlers = map[string]func([]string, *ads.Client){
 		}
 		fmt.Printf("value %v\n", value)
 	},
+	"write_value": func(args []string, client *ads.Client) {
+		data := "service_interface.input.in_servicetool_serviceint_cmd"
+		var port uint16 = 350
+		if len(args) == 0 {
+			fmt.Println("Error: No value provided to write.")
+			return
+		}
+		err := client.WriteValue(port, data, args[0])
+		if err != nil {
+			fmt.Println("Error writing value:", err)
+		} else {
+			fmt.Printf("Successfully wrote value %v to %s\n", args[0], data)
+		}
+	},
 
 	"read_bool": func(args []string, client *ads.Client) {
 		data := "Service_interface.Input.IN_busInfo_Main.flgReadyCmd"
@@ -85,6 +99,20 @@ var handlers = map[string]func([]string, *ads.Client){
 			fmt.Println("Error reading bool:", err)
 		}
 		fmt.Printf("value %v\n", value)
+	},
+	"write_bool": func(args []string, client *ads.Client) {
+		data := "service_interface.input.in_servicetool_serviceint_cmd"
+		var port uint16 = 350
+		if len(args) == 0 {
+			fmt.Println("Error: No value provided to write.")
+			return
+		}
+		err := client.WriteValue(port, data, args[0])
+		if err != nil {
+			fmt.Println("Error writing value:", err)
+		} else {
+			fmt.Printf("Successfully wrote value %v to %s\n", args[0], data)
+		}
 	},
 	"read_object": func(args []string, client *ads.Client) {
 		data := "Service_interface.Input.IN_busInfo_Main"
@@ -105,9 +133,6 @@ var handlers = map[string]func([]string, *ads.Client){
 			fmt.Println("Error reading raw data:", err)
 			return
 		}
-		// response[0:3] error
-		// response[4:7] length
-		// response[8:x] data
 		fmt.Printf("Raw read [IG: 0x%X, IO: 0x%X]: %v\n", indexGroup, indexOffset, result)
 	},
 	"write_raw": func(args []string, client *ads.Client) {
@@ -120,8 +145,7 @@ var handlers = map[string]func([]string, *ads.Client){
 			fmt.Println("Error writing raw data:", err)
 			return
 		}
-		// response[0:3] error
-		fmt.Printf("Raw write [IG: 0x%X, IO: 0x%X] succeeded%v\n", indexGroup, indexOffset)
+		fmt.Printf("Raw write [IG: 0x%X, IO: 0x%X] succeeded\n", indexGroup, indexOffset)
 	},
 }
 

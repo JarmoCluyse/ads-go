@@ -1,7 +1,7 @@
 package types
 
 // ADSDataType is the ADS data type
-type ADSDataType uint16
+type ADSDataType uint32
 
 const (
 	ADST_VOID     ADSDataType = 0  // ADST_VOID is a void type

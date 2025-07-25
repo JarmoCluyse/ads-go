@@ -72,6 +72,12 @@ func (c *Client) processReceiveBuffer() {
 	}
 }
 
+// AmsTcpHeader represents the AMS/TCP header.
+type AmsTcpHeader struct {
+	Command types.AMSHeaderFlag // Ams commands to be send
+	Length  uint32              // ams of the packet
+}
+
 // Read packet length from AMS/TCP header (bytes 2-5)
 // We need to peek without advancing the buffer's read pointer
 // to check if we received the full packet
@@ -98,14 +104,14 @@ func (c *Client) checkTcpPacketLength() (packetLenght uint32, error error) {
 }
 
 type AmsPacket struct {
-	TargetAmsAddress AmsAddress
-	SourceAmsAddress AmsAddress
-	AdsCommand       types.ADSCommand
-	StateFlags       types.ADSStateFlags
-	DataLength       uint32
-	ErrorCode        uint32
-	InvokeId         uint32
-	Data             []byte
+	TargetAmsAddress AmsAddress          // target address
+	SourceAmsAddress AmsAddress          // source address
+	AdsCommand       types.ADSCommand    // ADS command to be send
+	StateFlags       types.ADSStateFlags // state flags
+	DataLength       uint32              // length og the data
+	ErrorCode        uint32              // AMS header error code (not ADS payload error)
+	InvokeId         uint32              // invoke Id
+	Data             []byte              //received data
 }
 
 // parse the ams header
@@ -119,8 +125,8 @@ func (c *Client) parseAmsPacket(data []byte) AmsPacket {
 	targetPort := binary.LittleEndian.Uint16(amsHeader[6:8])
 	sourceNetID := utils.ByteArrayToAmsNetIdStr(amsHeader[8:14])
 	sourcePort := binary.LittleEndian.Uint16(amsHeader[14:16])
-	adsCommand := types.ADSCommand(amsHeader[16])
-	stateFlags := types.ADSStateFlags(amsHeader[18])
+	adsCommand := types.ADSCommand(binary.LittleEndian.Uint16(amsHeader[16:18]))
+	stateFlags := types.ADSStateFlags(binary.LittleEndian.Uint16(amsHeader[18:20]))
 	dataLength := binary.LittleEndian.Uint32(amsHeader[20:24])
 	errorCode := binary.LittleEndian.Uint32(amsHeader[24:28])
 	invokeID := binary.LittleEndian.Uint32(amsHeader[28:32])

@@ -13,22 +13,19 @@ func (c *Client) ReadRaw(port uint16, indexGroup uint32, indexOffset uint32, siz
 	c.logger.Debug("ReadRaw: Reading raw data", "indexGroup", indexGroup, "indexOffset", indexOffset, "size", size)
 
 	data := new(bytes.Buffer)
-	binary.Write(data, binary.LittleEndian, indexGroup)
-	binary.Write(data, binary.LittleEndian, indexOffset)
-	binary.Write(data, binary.LittleEndian, size)
+	binary.Write(data, binary.LittleEndian, indexGroup)  // group
+	binary.Write(data, binary.LittleEndian, indexOffset) // index
+	binary.Write(data, binary.LittleEndian, size)        // size
 
 	req := AdsCommandRequest{
-		Command:     types.ADSCommandRead,
-		Data:        data.Bytes(),
-		TargetNetID: c.settings.TargetNetID,
-		TargetPort:  port,
+		Command:    types.ADSCommandRead,
+		TargetPort: port,
+		Data:       data.Bytes(),
 	}
-
 	response, err := c.send(req)
 	if err != nil {
 		return nil, fmt.Errorf("ReadRaw: failed to send ADS command: %w", err)
 	}
-
 	return response, nil
 }
 
@@ -37,18 +34,16 @@ func (c *Client) WriteRaw(port uint16, indexGroup uint32, indexOffset uint32, da
 	c.logger.Debug("WriteRaw: Writing raw data", "indexGroup", indexGroup, "indexOffset", indexOffset, "size", len(data))
 
 	buf := new(bytes.Buffer)
-	binary.Write(buf, binary.LittleEndian, indexGroup)
-	binary.Write(buf, binary.LittleEndian, indexOffset)
-	binary.Write(buf, binary.LittleEndian, uint32(len(data)))
-	buf.Write(data)
+	binary.Write(buf, binary.LittleEndian, indexGroup)        // group
+	binary.Write(buf, binary.LittleEndian, indexOffset)       // index
+	binary.Write(buf, binary.LittleEndian, uint32(len(data))) // data length
+	buf.Write(data)                                           // data
 
 	req := AdsCommandRequest{
-		Command:     types.ADSCommandWrite,
-		Data:        buf.Bytes(),
-		TargetNetID: c.settings.TargetNetID,
-		TargetPort:  port,
+		Command:    types.ADSCommandWrite,
+		TargetPort: port,
+		Data:       buf.Bytes(),
 	}
-
 	res, err := c.send(req)
 	if err != nil {
 		return nil, fmt.Errorf("WriteRaw: failed to send ADS command: %w", err)
@@ -62,19 +57,17 @@ func (c *Client) ReadWriteRaw(port uint16, indexGroup uint32, indexOffset uint32
 	c.logger.Debug("ReadWriteRaw: Reading and writing raw data", "indexGroup", indexGroup, "indexOffset", indexOffset, "readLength", readLength, "writeDataSize", len(writeData))
 
 	buf := new(bytes.Buffer)
-	binary.Write(buf, binary.LittleEndian, indexGroup)
-	binary.Write(buf, binary.LittleEndian, indexOffset)
-	binary.Write(buf, binary.LittleEndian, readLength)
-	binary.Write(buf, binary.LittleEndian, uint32(len(writeData)))
-	buf.Write(writeData)
+	binary.Write(buf, binary.LittleEndian, indexGroup)             // group
+	binary.Write(buf, binary.LittleEndian, indexOffset)            // index
+	binary.Write(buf, binary.LittleEndian, readLength)             // read lenght
+	binary.Write(buf, binary.LittleEndian, uint32(len(writeData))) // write length
+	buf.Write(writeData)                                           // write data
 
 	req := AdsCommandRequest{
-		Command:     types.ADSCommandReadWrite,
-		Data:        buf.Bytes(),
-		TargetNetID: c.settings.TargetNetID,
-		TargetPort:  port,
+		Command:    types.ADSCommandReadWrite,
+		TargetPort: port,
+		Data:       buf.Bytes(),
 	}
-
 	response, err := c.send(req)
 	if err != nil {
 		return nil, fmt.Errorf("ReadWriteRaw: failed to send ADS command: %w", err)

@@ -10,28 +10,28 @@ import (
 
 // Response represents a response from an ADS device.
 type Response struct {
-	Data  []byte
-	Error error
+	Data  []byte // received data
+	Error error  // received ads error
 }
 
 // Client represents an ADS client.
 type Client struct {
-	conn          net.Conn
-	settings      ClientSettings
-	mutex         sync.Mutex
-	invokeID      uint32
-	requests      map[uint32]chan Response
-	localAmsAddr  AmsAddress
-	receiveBuffer bytes.Buffer // Buffer for incoming data
-	logger        *slog.Logger
+	conn          net.Conn                 // tcp connection
+	settings      ClientSettings           // client settings
+	mutex         sync.Mutex               // mutex for invoke id and request map
+	invokeID      uint32                   // last used invoke id
+	requests      map[uint32]chan Response // channel map to write the responses to
+	localAmsAddr  AmsAddress               // local asigned ams adres
+	receiveBuffer bytes.Buffer             // Buffer for incoming data
+	logger        *slog.Logger             // logger
 }
 
 // ClientSettings holds the settings for the ADS client.
 type ClientSettings struct {
-	TargetNetID       string
-	RouterAddr        string
-	Timeout           time.Duration
-	AdsSymbolsUseUtf8 bool
+	TargetNetID       string        // target ams net id
+	RouterAddr        string        // adres of the router (127.0.0.1 asumed if empty)
+	Timeout           time.Duration // message timeout
+	AdsSymbolsUseUtf8 bool          // bool if names are utf8  TODO: check needed! for our purpose
 }
 
 // NewClient creates a new ADS client.

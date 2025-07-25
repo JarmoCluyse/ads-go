@@ -17,7 +17,7 @@ func (c *Client) GetDataType(name string, port uint16) (types.AdsDataType, error
 		return types.AdsDataType{}, fmt.Errorf("GetDataType: failed to build data type: %w", err)
 	}
 
-	c.logger.Debug("GetDataType: Data type built and cached", "name", name)
+	c.logger.Debug("GetDataType: Data type built", "name", name)
 	return dataType, nil
 }
 
@@ -82,20 +82,31 @@ func (c *Client) getDataTypeDeclaration(name string, port uint16) (types.AdsData
 	binary.Write(data, binary.LittleEndian, uint32(0xFFFFFFFF))
 	binary.Write(data, binary.LittleEndian, uint32(len(name)+1))
 	data.WriteString(name)
+	binary.Write(data, binary.LittleEndian, uint8(0))
 
 	req := AdsCommandRequest{
-		Command:     types.ADSCommandReadWrite,
-		Data:        data.Bytes(),
-		TargetNetID: c.settings.TargetNetID,
-		TargetPort:  port,
+		Command:    types.ADSCommandReadWrite,
+		TargetPort: port,
+		Data:       data.Bytes(),
 	}
 
 	response, err := c.send(req)
 	if err != nil {
 		return types.AdsDataType{}, fmt.Errorf("getDataTypeDeclaration: failed to send ADS command: %w", err)
 	}
-
-	dataType, err := c.ParseAdsDataTypeResponse(response)
+	errorCode := binary.LittleEndian.Uint32(response[0:4])
+	if errorCode != 0 {
+		errorString := types.ADSError[errorCode]
+		c.logger.Error("ReadTcSystemState: ADS error received", "errorCode", fmt.Sprintf("0x%x", errorCode), "error", errorString)
+		return types.AdsDataType{}, fmt.Errorf("ADS error: 0x%x", errorCode)
+	}
+	symbolLen := binary.LittleEndian.Uint32(response[4:8])
+	symbolData := response[8:]
+	if len(symbolData) < int(symbolLen) {
+		c.logger.Error("received to little data", "length", symbolLen, "receivedLen", len(symbolData))
+		return types.AdsDataType{}, fmt.Errorf("received to little data")
+	}
+	dataType, err := c.ParseAdsDataTypeResponse(symbolData)
 
 	return dataType, err
 }
@@ -105,68 +116,82 @@ func (c *Client) ParseAdsDataTypeResponse(data []byte) (types.AdsDataType, error
 	var dataType types.AdsDataType
 
 	c.logger.Debug("Parsing AdsDataTypeResponse: starting header fields")
+	c.logger.Debug("parsing data type response", "data", data)
 
-	// NOTE: 0..3 Version
+	// NOTE: I think beckhoff does something weird here,
+	// Response is 0:4 -> ads error 4:8 -> data length 8: -> data
+	// however the data 0:4 -> is again the length which makes no sense?
+	var dataLen uint32
+	if err := binary.Read(reader, binary.LittleEndian, &dataLen); err != nil {
+		return types.AdsDataType{}, err
+	}
+	c.logger.Debug("ParseAdsDataTypeResponse: read dataLen", "value", dataLen, "remainingBytes", reader.Len())
+
+	// NOTE: 0:4 Version
 	if err := binary.Read(reader, binary.LittleEndian, &dataType.Version); err != nil {
 		c.logger.Debug("Failed parsing Version", "error", err)
 		return types.AdsDataType{}, err
 	}
-	// NOTE: 4..7 Hash value of datatype for comparison
+	c.logger.Debug("ParseAdsDataTypeResponse", "Version", dataType.Version)
+	// NOTE: 4:8 Hash value of datatype for comparison
 	if err := binary.Read(reader, binary.LittleEndian, &dataType.HashValue); err != nil {
 		c.logger.Debug("Failed parsing HashValue", "error", err)
 		return types.AdsDataType{}, err
 	}
-	// NOTE: 8..11 hashValue of base type / Code Offset to setter Method (typeHashValue or offsSetCode)
+	c.logger.Debug("ParseAdsDataTypeResponse", "HashValue", dataType.HashValue)
+	// NOTE: 8:12 hashValue of base type / Code Offset to setter Method (typeHashValue or offsSetCode)
 	if err := binary.Read(reader, binary.LittleEndian, &dataType.TypeHash); err != nil {
 		c.logger.Debug("Failed parsing TypeHash", "error", err)
 		return types.AdsDataType{}, err
 	}
-	// NOTE: 12..15 Size
+	c.logger.Debug("ParseAdsDataTypeResponse", "TypeHash", dataType.TypeHash)
+	// NOTE: 12:16 Size
 	if err := binary.Read(reader, binary.LittleEndian, &dataType.Size); err != nil {
 		c.logger.Debug("Failed parsing Size", "error", err)
 		return types.AdsDataType{}, err
 	}
-	// NOTE: 16..19 Offset
+	c.logger.Debug("ParseAdsDataTypeResponse", "Size", dataType.Size)
+	// NOTE: 16:20 Offset
 	if err := binary.Read(reader, binary.LittleEndian, &dataType.Offset); err != nil {
 		c.logger.Debug("Failed parsing Offset", "error", err)
 		return types.AdsDataType{}, err
 	}
-	// NOTE: 20..23 ADS data type
+	// NOTE: 20:24 ADS data type
 	if err := binary.Read(reader, binary.LittleEndian, &dataType.DataType); err != nil {
 		c.logger.Debug("Failed parsing DataType", "error", err)
 		return types.AdsDataType{}, err
 	}
-	// NOTE: 24..27 Flags
+	// NOTE: 24:28 Flags
 	if err := binary.Read(reader, binary.LittleEndian, &dataType.Flags); err != nil {
 		c.logger.Debug("Failed parsing Flags", "error", err)
 		return types.AdsDataType{}, err
 	}
 	c.logger.Debug("Parsed header fields", "Version", dataType.Version, "HashValue", dataType.HashValue, "TypeHash", dataType.TypeHash, "Size", dataType.Size, "Offset", dataType.Offset, "DataType", dataType.DataType, "Flags", dataType.Flags)
 
-	// NOTE: 28..29 Name length
+	// NOTE: 28:30 Name length
 	nameLen := uint16(0)
 	if err := binary.Read(reader, binary.LittleEndian, &nameLen); err != nil {
 		c.logger.Debug("Failed parsing NameLen", "error", err)
 		return types.AdsDataType{}, err
 	}
-	// NOTE: 30..31 Type length
+	// NOTE: 30:32 Type length
 	typeLen := uint16(0)
 	if err := binary.Read(reader, binary.LittleEndian, &typeLen); err != nil {
 		c.logger.Debug("Failed parsing TypeLen", "error", err)
 		return types.AdsDataType{}, err
 	}
-	// NOTE: 32..33 Comment length
+	// NOTE: 32:34 Comment length
 	commentLen := uint16(0)
 	if err := binary.Read(reader, binary.LittleEndian, &commentLen); err != nil {
 		c.logger.Debug("Failed parsing CommentLen", "error", err)
 		return types.AdsDataType{}, err
 	}
-	// NOTE: 34..35 Array dimension
+	// NOTE: 34:36 Array dimension
 	if err := binary.Read(reader, binary.LittleEndian, &dataType.ArrayDim); err != nil {
 		c.logger.Debug("Failed parsing ArrayDim", "error", err)
 		return types.AdsDataType{}, err
 	}
-	// NOTE: 36..37 Subitem count
+	// NOTE: 36:38 Subitem count
 	numSubItems := uint16(0)
 	if err := binary.Read(reader, binary.LittleEndian, &numSubItems); err != nil {
 		c.logger.Debug("Failed parsing NumSubItems", "error", err)

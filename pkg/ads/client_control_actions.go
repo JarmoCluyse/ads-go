@@ -10,26 +10,18 @@ import (
 func (c *Client) SetTcSystemToConfig() error {
 	c.logger.Debug("SetTcSystemToConfig: Setting TwinCAT system to config mode.")
 
-	// Read current state to ensure it's not already in config mode or other unexpected state
-	currentState, err := c.ReadPlcRuntimeState()
+	// Reading device state first as we don't want to change it (even though it's most probably 0)
+	currentState, err := c.ReadTcSystemState()
 	if err != nil {
 		c.logger.Error("SetTcSystemToConfig: Failed to read current PLC runtime state", "error", err)
 		return fmt.Errorf("failed to read current PLC runtime state: %w", err)
 	}
-	if currentState.ADSState == types.ADSStateConfig {
-		c.logger.Info("SetTcSystemToConfig: TwinCAT system is already in config mode.")
-		return nil
-	}
 
 	// Set ADS state to Config
-	resp, err := c.WriteControl(types.ADSStateReconfig, currentState.DeviceState, types.ADSReservedPortSystemService)
+	err = c.WriteControl(types.ADSStateReconfig, currentState.DeviceState, types.ADSReservedPortSystemService)
 	if err != nil {
 		c.logger.Error("SetTcSystemToConfig: Failed to send WriteControl command", "error", err)
 		return err
-	}
-	if resp.ErrorCode != 0 {
-		c.logger.Error("SetTcSystemToConfig: WriteControl command returned ADS error", "errorCode", fmt.Sprintf("0x%x", resp.ErrorCode))
-		return fmt.Errorf("WriteControl command returned ADS error: 0x%x", resp.ErrorCode)
 	}
 
 	c.logger.Info("SetTcSystemToConfig: TwinCAT system successfully set to config mode.")
@@ -44,20 +36,16 @@ func (c *Client) SetTcSystemToRun() error {
 	}
 
 	// Reading device state first as we don't want to change it (even though it's most probably 0)
-	state, err := c.ReadPlcRuntimeState()
+	state, err := c.ReadTcSystemState()
 	if err != nil {
 		c.logger.Error("SetTcSystemToRun: Failed to read current PLC runtime state", "error", err)
 		return fmt.Errorf("failed to read current PLC runtime state: %w", err)
 	}
 
-	resp, err := c.WriteControl(types.ADSStateReset, state.DeviceState, types.ADSReservedPortSystemService)
+	err = c.WriteControl(types.ADSStateReset, state.DeviceState, types.ADSReservedPortSystemService)
 	if err != nil {
 		c.logger.Error("SetTcSystemToRun: Failed to send WriteControl command", "error", err)
 		return err
-	}
-	if resp.ErrorCode != 0 {
-		c.logger.Error("SetTcSystemToRun: WriteControl command returned ADS error", "errorCode", fmt.Sprintf("0x%x", resp.ErrorCode))
-		return fmt.Errorf("WriteControl command returned ADS error: 0x%x", resp.ErrorCode)
 	}
 
 	c.logger.Info("SetTcSystemToRun: TwinCAT system successfully set to run mode.")

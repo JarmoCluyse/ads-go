@@ -16,9 +16,9 @@ var handlers = map[string]func([]string, *ads.Client){
 		if err != nil {
 			fmt.Println("Error reading system info:", err)
 		}
-		fmt.Printf("System info %v\n", info)
+		fmt.Printf("System version: %d.%d.%d\n", info.MajorVersion, info.MinorVersion, info.VersionBuild)
+		fmt.Printf("System name: %v\n", info.DeviceName)
 	},
-
 	"state": func(args []string, client *ads.Client) {
 		state, err := client.ReadTcSystemState()
 		if err != nil {
@@ -76,6 +76,25 @@ var handlers = map[string]func([]string, *ads.Client){
 		}
 		fmt.Printf("value %v\n", value)
 	},
+
+	"read_bool": func(args []string, client *ads.Client) {
+		data := "Service_interface.Input.IN_busInfo_Main.flgReadyCmd"
+		var port uint16 = 350
+		value, err := client.ReadValue(port, data)
+		if err != nil {
+			fmt.Println("Error reading bool:", err)
+		}
+		fmt.Printf("value %v\n", value)
+	},
+	"read_object": func(args []string, client *ads.Client) {
+		data := "Service_interface.Input.IN_busInfo_Main"
+		var port uint16 = 350
+		value, err := client.ReadValue(port, data)
+		if err != nil {
+			fmt.Println("Error reading system state:", err)
+		}
+		fmt.Printf("value %v\n", value)
+	},
 	"read_raw": func(args []string, client *ads.Client) {
 		indexGroup := uint32(0x1010290)
 		indexOffset := uint32(0x80000001)
@@ -86,6 +105,9 @@ var handlers = map[string]func([]string, *ads.Client){
 			fmt.Println("Error reading raw data:", err)
 			return
 		}
+		// response[0:3] error
+		// response[4:7] length
+		// response[8:x] data
 		fmt.Printf("Raw read [IG: 0x%X, IO: 0x%X]: %v\n", indexGroup, indexOffset, result)
 	},
 	"write_raw": func(args []string, client *ads.Client) {
@@ -98,6 +120,7 @@ var handlers = map[string]func([]string, *ads.Client){
 			fmt.Println("Error writing raw data:", err)
 			return
 		}
+		// response[0:3] error
 		fmt.Printf("Raw write [IG: 0x%X, IO: 0x%X] succeeded%v\n", indexGroup, indexOffset, response)
 	},
 }

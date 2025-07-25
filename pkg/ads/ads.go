@@ -8,41 +8,17 @@ import (
 	"github.com/jarmoCluyse/ads-go/pkg/ads/utils"
 )
 
-// ADSReservedIndexGroups defines the reserved index groups.
-type ADSReservedIndexGroups uint32
-
-const (
-	DeviceData    ADSReservedIndexGroups = 0xF100
-	SymbolVersion ADSReservedIndexGroups = 0xF006
-)
-
+// Struct for Ams address and port
 type AmsAddress struct {
-	NetID string
-	Port  uint16
-}
-
-// AmsTcpHeader represents the AMS/TCP header.
-type AmsTcpHeader struct {
-	Command types.AMSHeaderFlag
-	Length  uint32
-}
-
-// AmsHeader represents the AMS header.
-type AmsHeader struct {
-	Target     AmsAddress
-	Source     AmsAddress
-	Command    types.ADSCommand
-	StateFlags uint16
-	DataLength uint32
-	ErrorCode  uint32
-	InvokeID   uint32
+	NetID string // ams net id
+	Port  uint16 // port number
 }
 
 // createAmsTcpHeader creates the AMS/TCP header.
 func createAmsTcpHeader(command types.AMSHeaderFlag, dataLength uint32) []byte {
 	buf := make([]byte, constants.AMSTCPHeaderLength)
-	binary.LittleEndian.PutUint16(buf[0:2], uint16(command))
-	binary.LittleEndian.PutUint32(buf[2:6], dataLength)
+	binary.LittleEndian.PutUint16(buf[0:2], uint16(command)) // Ams command
+	binary.LittleEndian.PutUint32(buf[2:6], dataLength)      // length of the data
 	return buf
 }
 
@@ -53,19 +29,20 @@ func createAmsHeader(target AmsAddress, source AmsAddress, command types.ADSComm
 	if err != nil {
 		return nil, err
 	}
-	copy(buf[0:6], targetNetID)
-	binary.LittleEndian.PutUint16(buf[6:8], target.Port)
+	copy(buf[0:6], targetNetID)                          // Add Target Address
+	binary.LittleEndian.PutUint16(buf[6:8], target.Port) // Add target port
 
 	sourceNetID, err := utils.AmsNetIdStrToByteArray(source.NetID)
 	if err != nil {
 		return nil, err
 	}
-	copy(buf[8:14], sourceNetID)
-	binary.LittleEndian.PutUint16(buf[14:16], source.Port)
-	binary.LittleEndian.PutUint16(buf[16:18], uint16(command))
-	binary.LittleEndian.PutUint16(buf[18:20], 0x0004)
-	binary.LittleEndian.PutUint32(buf[20:24], dataLength)
-	binary.LittleEndian.PutUint32(buf[24:28], 0) // ErrorCode
-	binary.LittleEndian.PutUint32(buf[28:32], invokeID)
+	copy(buf[8:14], sourceNetID)                           // Add Source Address
+	binary.LittleEndian.PutUint16(buf[14:16], source.Port) // Add Source port
+
+	binary.LittleEndian.PutUint16(buf[16:18], uint16(command))                      // ADS Command to send
+	binary.LittleEndian.PutUint16(buf[18:20], uint16(types.ADSStateFlagAdsCommand)) // indicate we are sending an ADS command see state flags
+	binary.LittleEndian.PutUint32(buf[20:24], dataLength)                           // length of the data
+	binary.LittleEndian.PutUint32(buf[24:28], 0)                                    // ErrorCode (normally 0 while sending)
+	binary.LittleEndian.PutUint32(buf[28:32], invokeID)                             // invoke id to send
 	return buf, nil
 }

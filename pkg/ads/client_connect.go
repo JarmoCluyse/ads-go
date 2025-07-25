@@ -114,7 +114,6 @@ func (c *Client) registerAdsPort() error {
 	}
 
 	c.logger.Debug("registerAdsPort: respData", "length", len(respData), "packet", respData)
-
 	c.localAmsAddr.NetID = utils.ByteArrayToAmsNetIdStr(respData[0:6])
 	c.localAmsAddr.Port = binary.LittleEndian.Uint16(respData[6:8])
 

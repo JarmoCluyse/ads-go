@@ -8,6 +8,7 @@ import (
 	"github.com/jarmoCluyse/ads-go/pkg/ads/types"
 )
 
+
 func (c *Client) WriteValue(port uint16, path string, value any) error {
 	c.logger.Debug("WriteValue: Writing value", "path", path)
 
@@ -33,37 +34,127 @@ func (c *Client) convertValueToBuffer(value any, dataType types.AdsDataType) ([]
 	buf := new(bytes.Buffer)
 
 	switch dataType.DataType {
-	case types.ADST_INT8, types.ADST_UINT8:
-		if val, ok := value.(byte); ok {
-			buf.WriteByte(val)
+	case types.ADST_VOID:
+		break
+	case types.ADST_BIT:
+		// Only accept bool for ADS_BIT
+		b, ok := value.(bool)
+		if !ok {
+			return nil, fmt.Errorf("invalid type for ADST_BIT: %T (expected bool)", value)
+		}
+		var bitVal byte
+		if b {
+			bitVal = 1
 		} else {
-			return nil, fmt.Errorf("invalid type for ADST_INT8/UINT8: %T", value)
+			bitVal = 0
 		}
-	case types.ADST_INT16, types.ADST_UINT16:
-		if err := binary.Write(buf, binary.LittleEndian, value); err != nil {
+		buf.WriteByte(bitVal)
+	case types.ADST_INT8:
+		cast, ok := toInt8(value)
+		if !ok {
+			return nil, fmt.Errorf("invalid type for ADST_INT8: %T", value)
+		}
+		buf.WriteByte(byte(cast))
+	case types.ADST_UINT8:
+		cast, ok := toUint8(value)
+		if !ok {
+			return nil, fmt.Errorf("invalid type for ADST_UINT8: %T", value)
+		}
+		buf.WriteByte(cast)
+	case types.ADST_INT16:
+		cast, ok := toInt16(value)
+		if !ok {
+			return nil, fmt.Errorf("invalid type for ADST_INT16: %T", value)
+		}
+		if err := binary.Write(buf, binary.LittleEndian, cast); err != nil {
 			return nil, err
 		}
-	case types.ADST_INT32, types.ADST_UINT32:
-		if err := binary.Write(buf, binary.LittleEndian, value); err != nil {
+	case types.ADST_UINT16:
+		cast, ok := toUint16(value)
+		if !ok {
+			return nil, fmt.Errorf("invalid type for ADST_UINT16: %T", value)
+		}
+		if err := binary.Write(buf, binary.LittleEndian, cast); err != nil {
 			return nil, err
 		}
-	case types.ADST_INT64, types.ADST_UINT64:
-		if err := binary.Write(buf, binary.LittleEndian, value); err != nil {
+	case types.ADST_INT32:
+		cast, ok := toInt32(value)
+		if !ok {
+			return nil, fmt.Errorf("invalid type for ADST_INT32: %T", value)
+		}
+		if err := binary.Write(buf, binary.LittleEndian, cast); err != nil {
+			return nil, err
+		}
+	case types.ADST_UINT32:
+		cast, ok := toUint32(value)
+		if !ok {
+			return nil, fmt.Errorf("invalid type for ADST_UINT32: %T", value)
+		}
+		if err := binary.Write(buf, binary.LittleEndian, cast); err != nil {
+			return nil, err
+		}
+	case types.ADST_INT64:
+		cast, ok := toInt64(value)
+		if !ok {
+			return nil, fmt.Errorf("invalid type for ADST_INT64: %T", value)
+		}
+		if err := binary.Write(buf, binary.LittleEndian, cast); err != nil {
+			return nil, err
+		}
+	case types.ADST_UINT64:
+		cast, ok := toUint64(value)
+		if !ok {
+			return nil, fmt.Errorf("invalid type for ADST_UINT64: %T", value)
+		}
+		if err := binary.Write(buf, binary.LittleEndian, cast); err != nil {
 			return nil, err
 		}
 	case types.ADST_REAL32:
-		if err := binary.Write(buf, binary.LittleEndian, value); err != nil {
+		cast, ok := toFloat32(value)
+		if !ok {
+			return nil, fmt.Errorf("invalid type for ADST_REAL32: %T", value)
+		}
+		if err := binary.Write(buf, binary.LittleEndian, cast); err != nil {
 			return nil, err
 		}
 	case types.ADST_REAL64:
-		if err := binary.Write(buf, binary.LittleEndian, value); err != nil {
+		cast, ok := toFloat64(value)
+		if !ok {
+			return nil, fmt.Errorf("invalid type for ADST_REAL64: %T", value)
+		}
+		if err := binary.Write(buf, binary.LittleEndian, cast); err != nil {
 			return nil, err
 		}
-	case types.ADST_STRING, types.ADST_WSTRING:
+	case types.ADST_STRING:
 		if val, ok := value.(string); ok {
-			buf.WriteString(val)
+			bufferSize := int(dataType.Size)
+			if bufferSize <= 0 {
+				bufferSize = 80 // Default ADS STRING length if not specified
+			}
+			strBuf := make([]byte, bufferSize)
+			// Reserve last byte for null-terminator
+			copyLen := min(len(val), bufferSize-1)
+			copy(strBuf, val[:copyLen])
+			// strBuf is already zero-padded (Go makes with zeroes)
+			buf.Write(strBuf)
 		} else {
-			return nil, fmt.Errorf("invalid type for ADST_STRING/WSTRING: %T", value)
+			return nil, fmt.Errorf("invalid type for ADST_STRING: %T", value)
+		}
+	case types.ADST_WSTRING:
+		if val, ok := value.(string); ok {
+			bufferSize := int(dataType.Size)
+			if bufferSize <= 0 {
+				bufferSize = 160 // Default WSTRING size: 80 chars * 2 bytes (UTF-16LE)
+			}
+			wbuf := make([]byte, bufferSize)
+			// TODO: Proper UTF-16LE encoding
+			encoded := []byte(val)
+			// Reserve last two bytes for null-terminator (UTF-16)
+			copyLen := min(len(encoded), bufferSize-2)
+			copy(wbuf, encoded[:copyLen])
+			buf.Write(wbuf)
+		} else {
+			return nil, fmt.Errorf("invalid type for ADST_WSTRING: %T", value)
 		}
 	case types.ADST_BIGTYPE:
 		if len(dataType.SubItems) > 0 {
@@ -100,6 +191,5 @@ func (c *Client) convertValueToBuffer(value any, dataType types.AdsDataType) ([]
 	default:
 		return nil, fmt.Errorf("unsupported data type for conversion to buffer: %v", dataType.DataType)
 	}
-
 	return buf.Bytes(), nil
 }

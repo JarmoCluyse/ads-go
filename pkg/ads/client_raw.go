@@ -57,11 +57,12 @@ func (c *Client) ReadWriteRaw(port uint16, indexGroup uint32, indexOffset uint32
 	c.logger.Debug("ReadWriteRaw: Reading and writing raw data", "indexGroup", indexGroup, "indexOffset", indexOffset, "readLength", readLength, "writeDataSize", len(writeData))
 
 	buf := new(bytes.Buffer)
-	binary.Write(buf, binary.LittleEndian, indexGroup)             // group
-	binary.Write(buf, binary.LittleEndian, indexOffset)            // index
-	binary.Write(buf, binary.LittleEndian, readLength)             // read lenght
-	binary.Write(buf, binary.LittleEndian, uint32(len(writeData))) // write length
-	buf.Write(writeData)                                           // write data
+	binary.Write(buf, binary.LittleEndian, indexGroup)               // group
+	binary.Write(buf, binary.LittleEndian, indexOffset)              // index
+	binary.Write(buf, binary.LittleEndian, readLength)               // read lenght
+	binary.Write(buf, binary.LittleEndian, uint32(len(writeData)+1)) // write length
+	buf.Write(writeData)                                             // write data
+	binary.Write(buf, binary.LittleEndian, uint8(0))                 // write 0 after data
 
 	req := AdsCommandRequest{
 		Command:    types.ADSCommandReadWrite,
@@ -73,5 +74,17 @@ func (c *Client) ReadWriteRaw(port uint16, indexGroup uint32, indexOffset uint32
 		return nil, fmt.Errorf("ReadWriteRaw: failed to send ADS command: %w", err)
 	}
 
-	return response, nil
+	errorCode := binary.LittleEndian.Uint32(response[0:4])
+	if errorCode != 0 {
+		errorString := types.ADSError[errorCode]
+		c.logger.Error("ReadTcSystemState: ADS error received", "errorCode", fmt.Sprintf("0x%x", errorCode), "error", errorString)
+		return nil, fmt.Errorf("ADS error: 0x%x", errorCode)
+	}
+	Len := binary.LittleEndian.Uint32(response[4:8])
+	Data := response[8:]
+	if len(Data) < int(Len) {
+		c.logger.Error("received to little data", "length", Len, "receivedLen", len(Data))
+		return nil, fmt.Errorf("received to little data")
+	}
+	return Data, nil
 }

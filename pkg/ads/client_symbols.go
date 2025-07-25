@@ -12,40 +12,19 @@ import (
 // GetSymbol retrieves information about a symbol from the ADS server.
 func (c *Client) GetSymbol(port uint16, path string) (*types.AdsSymbol, error) {
 	c.logger.Debug("GetSymbol: Requested symbol", "path", path)
-
 	// Create the request data
-	data := new(bytes.Buffer)
-	binary.Write(data, binary.LittleEndian, types.ADSReservedIndexGroupSymbolInfoByNameEx)
-	binary.Write(data, binary.LittleEndian, uint32(0))
-	binary.Write(data, binary.LittleEndian, uint32(0xFFFFFFFF))
-	binary.Write(data, binary.LittleEndian, uint32(len(path)+1))
-	data.Write(utils.EncodeStringToPlcStringBuffer(path, c.settings.AdsSymbolsUseUtf8))
-	binary.Write(data, binary.LittleEndian, uint8(0))
-
-	req := AdsCommandRequest{
-		Command:    types.ADSCommandReadWrite,
-		TargetPort: port,
-		Data:       data.Bytes(),
-	}
-	response, err := c.send(req)
+	data, err := c.ReadWriteRaw(
+		port,
+		uint32(types.ADSReservedIndexGroupSymbolInfoByNameEx),
+		uint32(0),
+		uint32(0xFFFFFFFF),
+		utils.EncodeStringToPlcStringBuffer(path, c.settings.AdsSymbolsUseUtf8),
+	)
 	if err != nil {
 		c.logger.Error("GetSymbol: Failed to send ADS command", "error", err)
 		return &types.AdsSymbol{}, fmt.Errorf("GetSymbol: failed to send ADS command: %w", err)
 	}
-	c.logger.Debug("GetSymbol: Full response received from ADS server", "response", fmt.Sprintf("%x", response), "length", len(response))
-	errorCode := binary.LittleEndian.Uint32(response[0:4])
-	if errorCode != 0 {
-		errorString := types.ADSError[errorCode]
-		c.logger.Error("ReadTcSystemState: ADS error received", "errorCode", fmt.Sprintf("0x%x", errorCode), "error", errorString)
-		return nil, fmt.Errorf("ADS error: 0x%x", errorCode)
-	}
-	symbolLen := binary.LittleEndian.Uint32(response[4:8])
-	symbolData := response[8:]
-	if len(symbolData) < int(symbolLen) {
-		c.logger.Error("received to little data", "length", symbolLen, "receivedLen", len(symbolData))
-		return nil, fmt.Errorf("received to little data")
-	}
-	symbol, err := c.parseAdsSymbol(symbolData)
+	symbol, err := c.parseAdsSymbol(data)
 	if err != nil {
 		c.logger.Error("GetSymbol: Failed to parse symbol from response", "error", err)
 		return &types.AdsSymbol{}, fmt.Errorf("GetSymbol: failed to parse symbol from response: %w", err)

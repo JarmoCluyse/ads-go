@@ -76,38 +76,17 @@ func (c *Client) buildDataTypeRecursive(dataType types.AdsDataType, port uint16,
 }
 
 func (c *Client) getDataTypeDeclaration(name string, port uint16) (types.AdsDataType, error) {
-	data := new(bytes.Buffer)
-	binary.Write(data, binary.LittleEndian, types.ADSReservedIndexGroupDataDataTypeInfoByNameEx)
-	binary.Write(data, binary.LittleEndian, uint32(0))
-	binary.Write(data, binary.LittleEndian, uint32(0xFFFFFFFF))
-	binary.Write(data, binary.LittleEndian, uint32(len(name)+1))
-	data.WriteString(name)
-	binary.Write(data, binary.LittleEndian, uint8(0))
-
-	req := AdsCommandRequest{
-		Command:    types.ADSCommandReadWrite,
-		TargetPort: port,
-		Data:       data.Bytes(),
-	}
-
-	response, err := c.send(req)
+	data, err := c.ReadWriteRaw(
+		port,
+		uint32(types.ADSReservedIndexGroupDataDataTypeInfoByNameEx),
+		uint32(0),
+		uint32(0xFFFFFFFF),
+		[]byte(name),
+	)
 	if err != nil {
 		return types.AdsDataType{}, fmt.Errorf("getDataTypeDeclaration: failed to send ADS command: %w", err)
 	}
-	errorCode := binary.LittleEndian.Uint32(response[0:4])
-	if errorCode != 0 {
-		errorString := types.ADSError[errorCode]
-		c.logger.Error("ReadTcSystemState: ADS error received", "errorCode", fmt.Sprintf("0x%x", errorCode), "error", errorString)
-		return types.AdsDataType{}, fmt.Errorf("ADS error: 0x%x", errorCode)
-	}
-	symbolLen := binary.LittleEndian.Uint32(response[4:8])
-	symbolData := response[8:]
-	if len(symbolData) < int(symbolLen) {
-		c.logger.Error("received to little data", "length", symbolLen, "receivedLen", len(symbolData))
-		return types.AdsDataType{}, fmt.Errorf("received to little data")
-	}
-	dataType, err := c.ParseAdsDataTypeResponse(symbolData)
-
+	dataType, err := c.ParseAdsDataTypeResponse(data)
 	return dataType, err
 }
 

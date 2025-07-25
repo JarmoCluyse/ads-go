@@ -31,6 +31,7 @@ func (c *Client) ReadValue(port uint16, path string) (any, error) {
 }
 
 func (c *Client) convertBufferToValue(data []byte, dataType types.AdsDataType) (any, error) {
+	c.logger.Debug("convertBufferToValue", "dataType", dataType, "data", data)
 	// TODO: check known datatypes
 	switch dataType.DataType {
 	case types.ADST_VOID:

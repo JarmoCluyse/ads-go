@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"strconv"
 	"strings"
 	"time"
 
@@ -83,16 +84,26 @@ var handlers = map[string]func([]string, *ads.Client){
 			fmt.Println("Error: No value provided to write.")
 			return
 		}
-		err := client.WriteValue(port, data, args[0])
+		// Try to parse the argument as an integer first
+		var value any
+		if intVal, err := strconv.Atoi(args[0]); err == nil {
+			value = intVal
+		} else if floatVal, err := strconv.ParseFloat(args[0], 64); err == nil {
+			value = floatVal
+		} else {
+			fmt.Println("Error: Provided value is not a valid number.")
+			return
+		}
+		err := client.WriteValue(port, data, value)
 		if err != nil {
 			fmt.Println("Error writing value:", err)
 		} else {
-			fmt.Printf("Successfully wrote value %v to %s\n", args[0], data)
+			fmt.Printf("Successfully wrote value %v to %s\n", value, data)
 		}
 	},
 
 	"read_bool": func(args []string, client *ads.Client) {
-		data := "Service_interface.Input.IN_busInfo_Main.flgReadyCmd"
+		data := "Service_interface.Input.IN_MAIN_SERVICEINT_ENABLE"
 		var port uint16 = 350
 		value, err := client.ReadValue(port, data)
 		if err != nil {
@@ -101,17 +112,28 @@ var handlers = map[string]func([]string, *ads.Client){
 		fmt.Printf("value %v\n", value)
 	},
 	"write_bool": func(args []string, client *ads.Client) {
-		data := "service_interface.input.in_servicetool_serviceint_cmd"
+		data := "Service_interface.Input.IN_MAIN_SERVICEINT_ENABLE"
 		var port uint16 = 350
 		if len(args) == 0 {
 			fmt.Println("Error: No value provided to write.")
 			return
 		}
-		err := client.WriteValue(port, data, args[0])
+		var boolValue bool
+		var err error
+		switch strings.ToLower(args[0]) {
+		case "true":
+			boolValue = true
+		case "false":
+			boolValue = false
+		default:
+			fmt.Println("Error: Value must be 'true' or 'false'.")
+			return
+		}
+		err = client.WriteValue(port, data, boolValue)
 		if err != nil {
 			fmt.Println("Error writing value:", err)
 		} else {
-			fmt.Printf("Successfully wrote value %v to %s\n", args[0], data)
+			fmt.Printf("Successfully wrote value %v to %s\n", boolValue, data)
 		}
 	},
 	"read_object": func(args []string, client *ads.Client) {

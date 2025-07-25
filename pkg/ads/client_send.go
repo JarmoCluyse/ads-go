@@ -41,7 +41,7 @@ func (c *Client) send(req AdsCommandRequest) ([]byte, error) {
 		c.logger.Error("send: Failed to write packet to connection", "error", err)
 		return nil, err
 	}
-	c.logger.Debug("send: Packet sent. Waiting for response or timeout.")
+	c.logger.Debug("send: Packet sent. Waiting for response or timeout.", "packet", packet)
 
 	select {
 	case response := <-channel:

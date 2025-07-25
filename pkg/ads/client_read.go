@@ -28,11 +28,15 @@ func (c *Client) ReadValue(port uint16, path string) (any, error) {
 		return nil, fmt.Errorf("ReadValue: failed to read raw data: %w", err)
 	}
 	return c.convertBufferToValue(data, dataType)
-	// return data, nil
 }
 
 func (c *Client) convertBufferToValue(data []byte, dataType types.AdsDataType) (any, error) {
+	// TODO: check known datatypes
 	switch dataType.DataType {
+	case types.ADST_VOID:
+		return nil, nil // Void type, no value to return
+	case types.ADST_BIT:
+		return data[0] != 0, nil // Bit type, return boolean value
 	case types.ADST_INT8, types.ADST_UINT8:
 		return data[0], nil
 	case types.ADST_INT16, types.ADST_UINT16:

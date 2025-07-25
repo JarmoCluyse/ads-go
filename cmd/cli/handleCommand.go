@@ -115,13 +115,13 @@ var handlers = map[string]func([]string, *ads.Client){
 		indexOffset := uint32(0x80000001)
 		var port uint16 = 350
 		data := []byte{36}
-		response, err := client.WriteRaw(port, indexGroup, indexOffset, data)
+		err := client.WriteRaw(port, indexGroup, indexOffset, data)
 		if err != nil {
 			fmt.Println("Error writing raw data:", err)
 			return
 		}
 		// response[0:3] error
-		fmt.Printf("Raw write [IG: 0x%X, IO: 0x%X] succeeded%v\n", indexGroup, indexOffset, response)
+		fmt.Printf("Raw write [IG: 0x%X, IO: 0x%X] succeeded%v\n", indexGroup, indexOffset)
 	},
 }
 

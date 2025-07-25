@@ -19,7 +19,7 @@ const (
 	ADST_WSTRING  ADSDataType = 31 // ADST_WSTRING is a wide string
 	ADST_REAL80   ADSDataType = 32 // ADST_REAL80 is an 80-bit real
 	ADST_BIT      ADSDataType = 33 // ADST_BIT is a bit
-	ADST_MAXTYPES ADSDataType = 34 // ADST_MAXTYPES is the maximum number of types
+	ADST_MAXTYPES ADSDataType = 34 // ADST_MAXTYPES is the maximum number of types (internal only)
 	ADST_BIGTYPE  ADSDataType = 65 // ADST_BIGTYPE is a big type
 )
 

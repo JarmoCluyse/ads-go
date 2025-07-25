@@ -25,7 +25,7 @@ func (c *Client) WriteValue(port uint16, path string, value any) error {
 	if err != nil {
 		return fmt.Errorf("WriteValue: failed to convert value to buffer: %w", err)
 	}
-	_, err = c.WriteRaw(port, symbol.IndexGroup, symbol.IndexOffset, data)
+	err = c.WriteRaw(port, symbol.IndexGroup, symbol.IndexOffset, data)
 	return err
 }
 

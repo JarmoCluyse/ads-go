@@ -27,21 +27,7 @@ func (c *Client) ReadValue(port uint16, path string) (any, error) {
 	if err != nil {
 		return nil, fmt.Errorf("ReadValue: failed to read raw data: %w", err)
 	}
-
-	errorCode := binary.LittleEndian.Uint32(data[0:4])
-	if errorCode != 0 {
-		errorString := types.ADSError[errorCode]
-		c.logger.Error("ReadTcSystemState: ADS error received", "errorCode", fmt.Sprintf("0x%x", errorCode), "error", errorString)
-		return nil, fmt.Errorf("ADS error: 0x%x", errorCode)
-	}
-	symbolLen := binary.LittleEndian.Uint32(data[4:8])
-	dataContent := data[8:]
-	if len(dataContent) < int(symbolLen) {
-		c.logger.Error("received to little data", "length", symbolLen, "receivedLen", len(dataContent))
-		return nil, fmt.Errorf("received to little data")
-	}
-
-	return c.convertBufferToValue(dataContent, dataType)
+	return c.convertBufferToValue(data, dataType)
 	// return data, nil
 }
 

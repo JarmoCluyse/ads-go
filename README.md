@@ -17,7 +17,7 @@ A Go client library for communicating with Beckhoff devices using the ADS protoc
 ## Installation
 
 ```bash
-go get github.com/JarmoCluyse/beckhoffads@latest
+go get github.com/JarmoCluyse/ads-go@latest
 ```
 
 ---
@@ -37,7 +37,7 @@ Example:
 
 ```go
 logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
-client := beckhoffads.NewClient(settings, logger)
+client := adsgo.NewClient(settings, logger)
 ```
 
 ---

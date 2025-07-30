@@ -1,9 +1,5 @@
-TODO: Reading
-
-- data type convert check base type
-- data type convert objects
-- data type convert arrays
-
-TODO: Writing
-
-- data to buffer convert
+[ ] subscribing to values
+[ ] caching of data types
+[ ] clear cache when robots goes to config
+[ ] writing unit tests
+[ ] improving stability and reconnecting

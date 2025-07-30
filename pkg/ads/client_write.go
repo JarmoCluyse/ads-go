@@ -4,10 +4,10 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
+	"reflect"
 
 	"github.com/jarmoCluyse/ads-go/pkg/ads/types"
 )
-
 
 func (c *Client) WriteValue(port uint16, path string, value any) error {
 	c.logger.Debug("WriteValue: Writing value", "path", path)
@@ -30,14 +30,107 @@ func (c *Client) WriteValue(port uint16, path string, value any) error {
 	return err
 }
 
-func (c *Client) convertValueToBuffer(value any, dataType types.AdsDataType) ([]byte, error) {
+// toAnySlice converts a slice of any element type (including nested slices) to []any or [][]any recursively.
+func toAnySlice(value any) ([]any, bool) {
+	v := reflect.ValueOf(value)
+	if v.Kind() != reflect.Slice && v.Kind() != reflect.Array {
+		return nil, false
+	}
+	length := v.Len()
+	result := make([]any, length)
+	for i := range length {
+		elem := v.Index(i).Interface()
+		// Recursively convert nested slices
+		if reflect.ValueOf(elem).Kind() == reflect.Slice || reflect.ValueOf(elem).Kind() == reflect.Array {
+			if subSlice, ok := toAnySlice(elem); ok {
+				result[i] = subSlice
+			} else {
+				result[i] = elem
+			}
+		} else {
+			result[i] = elem
+		}
+	}
+	return result, true
+}
+
+func (c *Client) convertValueToBuffer(value any, dataType types.AdsDataType, isArrayItem ...bool) ([]byte, error) {
 	buf := new(bytes.Buffer)
 
+	isArrItem := false
+	if len(isArrayItem) > 0 {
+		isArrItem = isArrayItem[0]
+	}
+
+	// First: handle structs/subitems
+	if len(dataType.SubItems) > 0 && (len(dataType.ArrayInfo) == 0) {
+		// Struct type
+		valMap, ok := value.(map[string]any)
+		if !ok {
+			return nil, fmt.Errorf("invalid type for struct: %T", value)
+		}
+		for _, subItem := range dataType.SubItems {
+			subItemValue, exists := valMap[subItem.Name]
+			if !exists {
+				return nil, fmt.Errorf("missing field %s for struct", subItem.Name)
+			}
+			subItemBuf, err := c.convertValueToBuffer(subItemValue, subItem)
+			if err != nil {
+				return nil, err
+			}
+			buf.Write(subItemBuf)
+		}
+		return buf.Bytes(), nil
+	}
+
+	// Second: handle arrays (including multidimensional)
+	if len(dataType.ArrayInfo) > 0 && !isArrItem {
+		valSlice, ok := value.([]any)
+		if !ok {
+			valSliceConv, isSlice := toAnySlice(value)
+			if !isSlice {
+				return nil, fmt.Errorf("invalid type for array: %T", value)
+			}
+			valSlice = valSliceConv
+		}
+		var writeArray func(dim int, dType types.AdsDataType, arr []any) error
+		writeArray = func(dim int, dType types.AdsDataType, arr []any) error {
+			for i := 0; i < int(dType.ArrayInfo[dim].Length); i++ {
+				if dim+1 < len(dType.ArrayInfo) {
+					subArr, ok := arr[i].([]any)
+					if !ok {
+						// Attempt to convert using toAnySlice for nested slices
+						if converted, isSubSlice := toAnySlice(arr[i]); isSubSlice {
+							subArr = converted
+						} else {
+							return fmt.Errorf("invalid nested array type: %T", arr[i])
+						}
+					}
+					if err := writeArray(dim+1, dType, subArr); err != nil {
+						return err
+					}
+				} else {
+					elementBuf, err := c.convertValueToBuffer(arr[i], dType, true)
+					if err != nil {
+						return err
+					}
+					buf.Write(elementBuf)
+				}
+			}
+			return nil
+		}
+		if err := writeArray(0, dataType, valSlice); err != nil {
+			return nil, err
+		}
+		return buf.Bytes(), nil
+	}
+
+	// Handle primitive types last
 	switch dataType.DataType {
 	case types.ADST_VOID:
+		// Void type, no value to write
 		break
 	case types.ADST_BIT:
-		// Only accept bool for ADS_BIT
 		b, ok := value.(bool)
 		if !ok {
 			return nil, fmt.Errorf("invalid type for ADST_BIT: %T (expected bool)", value)
@@ -157,39 +250,7 @@ func (c *Client) convertValueToBuffer(value any, dataType types.AdsDataType) ([]
 			return nil, fmt.Errorf("invalid type for ADST_WSTRING: %T", value)
 		}
 	case types.ADST_BIGTYPE:
-		if len(dataType.SubItems) > 0 {
-			// Handle structs
-			if valMap, ok := value.(map[string]any); ok {
-				for _, subItem := range dataType.SubItems {
-					subItemValue, exists := valMap[subItem.Name]
-					if !exists {
-						return nil, fmt.Errorf("missing field %s for struct", subItem.Name)
-					}
-					subItemBuf, err := c.convertValueToBuffer(subItemValue, subItem)
-					if err != nil {
-						return nil, err
-					}
-					buf.Write(subItemBuf)
-				}
-			} else {
-				return nil, fmt.Errorf("invalid type for struct: %T", value)
-			}
-		} else if dataType.ArrayDim > 0 {
-			// Handle arrays
-			if valSlice, ok := value.([]any); ok {
-				for _, element := range valSlice {
-					elementBuf, err := c.convertValueToBuffer(element, dataType)
-					if err != nil {
-						return nil, err
-					}
-					buf.Write(elementBuf)
-				}
-			} else {
-				return nil, fmt.Errorf("invalid type for array: %T", value)
-			}
-		}
-	default:
-		return nil, fmt.Errorf("unsupported data type for conversion to buffer: %v", dataType.DataType)
+		return nil, fmt.Errorf("todo: this data type")
 	}
 	return buf.Bytes(), nil
 }

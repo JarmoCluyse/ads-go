@@ -34,12 +34,14 @@ func (c *Client) BuildDataType(name string, port uint16) (types.AdsDataType, err
 }
 
 func (c *Client) buildDataTypeRecursive(dataType types.AdsDataType, port uint16, isRootType bool) (types.AdsDataType, error) {
+	c.logger.Debug("buildDataTypeRecursive: Building data type recursively", "Name", dataType.Name, "Type", dataType.Type, "isRootType", isRootType)
 	// If the data type has sub-items, recursively build them
 	if len(dataType.SubItems) > 0 {
 		builtType := dataType
 		builtType.SubItems = []types.AdsDataType{}
 
 		for _, subItemDeclaration := range dataType.SubItems {
+			c.logger.Debug("buildDataTypeRecursive: Building data type recursively", "subItemDeclaration", subItemDeclaration)
 			// Recursively build the sub-item's data type using its Type field
 			builtSubItemType, err := c.BuildDataType(subItemDeclaration.Type, port)
 			if err != nil {
@@ -179,26 +181,26 @@ func (c *Client) ParseAdsDataTypeResponse(data []byte) (types.AdsDataType, error
 	c.logger.Debug("Parsed lengths and counts", "NameLen", nameLen, "TypeLen", typeLen, "CommentLen", commentLen, "ArrayDim", dataType.ArrayDim, "NumSubItems", numSubItems)
 
 	// NOTE: 38.. Data type name
-	name := make([]byte, nameLen)
+	name := make([]byte, nameLen+1)
 	if err := binary.Read(reader, binary.LittleEndian, name); err != nil {
 		c.logger.Debug("Failed parsing Name value", "error", err)
 		return types.AdsDataType{}, err
 	}
-	dataType.Name = string(name)
+	dataType.Name = string(name[:nameLen])
 	// NOTE: .. Data type type
-	typeVal := make([]byte, typeLen)
+	typeVal := make([]byte, typeLen+1)
 	if err := binary.Read(reader, binary.LittleEndian, typeVal); err != nil {
 		c.logger.Debug("Failed parsing Type value", "error", err)
 		return types.AdsDataType{}, err
 	}
-	dataType.Type = string(typeVal)
+	dataType.Type = string(typeVal[:typeLen])
 	// NOTE: .. Data type comment
-	comment := make([]byte, commentLen)
+	comment := make([]byte, commentLen+1)
 	if err := binary.Read(reader, binary.LittleEndian, comment); err != nil {
 		c.logger.Debug("Failed parsing Comment value", "error", err)
 		return types.AdsDataType{}, err
 	}
-	dataType.Comment = string(comment)
+	dataType.Comment = string(comment[:commentLen])
 	c.logger.Debug("Parsed identifier strings", "Name", dataType.Name, "Type", dataType.Type, "Comment", dataType.Comment)
 
 	// NOTE: Parse Array Info
@@ -219,6 +221,7 @@ func (c *Client) ParseAdsDataTypeResponse(data []byte) (types.AdsDataType, error
 	// NOTE: Parse Subitems (children data types)
 	dataType.SubItems = make([]types.AdsDataType, 0, int(numSubItems))
 	for i := 0; i < int(numSubItems); i++ {
+		c.logger.Debug("parsing Subitem entryLenBuf", "i", i)
 		// Each subitem starts with its entry length (uint32)
 		entryLenBuf := make([]byte, 4)
 		if _, err := reader.Read(entryLenBuf); err != nil {
@@ -236,7 +239,8 @@ func (c *Client) ParseAdsDataTypeResponse(data []byte) (types.AdsDataType, error
 			return types.AdsDataType{}, err
 		}
 		// Recursively parse the subitem (children)
-		subItem, err := c.ParseAdsDataTypeResponse(subItemBuf)
+		fullSubItem := append(entryLenBuf, subItemBuf...)
+		subItem, err := c.ParseAdsDataTypeResponse(fullSubItem)
 		if err != nil {
 			c.logger.Debug("Failed parsing Subitem recursively", "i", i, "error", err)
 			return types.AdsDataType{}, err
@@ -482,6 +486,6 @@ func (c *Client) ParseAdsDataTypeResponse(data []byte) (types.AdsDataType, error
 		c.logger.Warn("Flag SoftwareProtectionLevels set, not implemented")
 	}
 
-	c.logger.Debug("ParseAdsDataTypeResponse complete", "DataType.Name", dataType.Name, "Type", dataType.Type, "Subitems", len(dataType.SubItems), "Flags", dataType.Flags)
+	c.logger.Debug("ParseAdsDataTypeResponse complete", "DataType.Name", dataType.Name, "Type", dataType.Type, "Subitems", len(dataType.SubItems), "Flags", dataType.Flags, "ArrayInfo", dataType.ArrayInfo)
 	return dataType, nil
 }

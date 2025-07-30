@@ -30,9 +30,48 @@ func (c *Client) ReadValue(port uint16, path string) (any, error) {
 	return c.convertBufferToValue(data, dataType)
 }
 
-func (c *Client) convertBufferToValue(data []byte, dataType types.AdsDataType) (any, error) {
-	c.logger.Debug("convertBufferToValue", "dataType", dataType, "data", data)
-	// TODO: check known datatypes
+func (c *Client) convertBufferToValue(data []byte, dataType types.AdsDataType, isArrayItem ...bool) (any, error) {
+	c.logger.Info("convertBufferToValue", "dataType", dataType, "data", data)
+
+	isArrItem := false
+	if len(isArrayItem) > 0 {
+		isArrItem = isArrayItem[0]
+	}
+
+	// If struct or array item
+	if ((len(dataType.ArrayInfo) == 0 || isArrItem) && len(dataType.SubItems) > 0) {
+		result := make(map[string]any)
+		data = data[dataType.Offset:]
+		for _, subItem := range dataType.SubItems {
+			value, err := c.convertBufferToValue(data, subItem)
+			if err != nil {
+				return nil, err
+			}
+			result[subItem.Name] = value
+		}
+		return result, nil
+	} else if len(dataType.ArrayInfo) > 0 && !isArrItem {
+		// Handle arrays (including multidimensional)
+		var convertArrayDimension func(dim int, d []byte) []any
+		convertArrayDimension = func(dim int, d []byte) []any {
+			temp := []any{}
+			for i := 0; i < int(dataType.ArrayInfo[dim].Length); i++ {
+				if dim+1 < len(dataType.ArrayInfo) {
+					temp = append(temp, convertArrayDimension(dim+1, d))
+				} else {
+					value, err := c.convertBufferToValue(d, dataType, true)
+					if err != nil {
+						temp = append(temp, nil)
+					} else {
+						temp = append(temp, value)
+					}
+					d = d[dataType.Size:]
+				}
+			}
+			return temp
+		}
+		return convertArrayDimension(0, data), nil
+	}
 	switch dataType.DataType {
 	case types.ADST_VOID:
 		return nil, nil // Void type, no value to return
@@ -73,31 +112,7 @@ func (c *Client) convertBufferToValue(data []byte, dataType types.AdsDataType) (
 	case types.ADST_STRING, types.ADST_WSTRING:
 		return string(data), nil
 	case types.ADST_BIGTYPE:
-		if len(dataType.SubItems) > 0 {
-			// Handle structs
-			result := make(map[string]any)
-			for _, subItem := range dataType.SubItems {
-				value, err := c.convertBufferToValue(data[subItem.Offset:subItem.Offset+subItem.Size], subItem)
-				if err != nil {
-					return nil, err
-				}
-				result[subItem.Name] = value
-			}
-			return result, nil
-		} else if dataType.ArrayDim > 0 {
-			// Handle arrays
-			var result []any
-			for i := 0; i < int(dataType.ArrayInfo[0].Length); i++ {
-				// TODO: This is not correct for multi-dimensional arrays
-				elementSize := dataType.Size / uint32(dataType.ArrayInfo[0].Length)
-				value, err := c.convertBufferToValue(data[uint32(i)*elementSize:], dataType)
-				if err != nil {
-					return nil, err
-				}
-				result = append(result, value)
-			}
-			return result, nil
-		}
+		return nil, fmt.Errorf("todo: this data type")
 	}
 	return nil, fmt.Errorf("unsupported data type: %v", dataType.DataType)
 }

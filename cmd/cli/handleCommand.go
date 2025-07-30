@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/jarmoCluyse/ads-go/pkg/ads"
+	"github.com/jarmocluyse/ads-go/pkg/ads"
 )
 
 var handlers = map[string]func([]string, *ads.Client){
@@ -192,7 +192,7 @@ var handlers = map[string]func([]string, *ads.Client){
 		for _, arg := range args {
 			parts := strings.SplitN(arg, "=", 2)
 			if len(parts) != 2 {
-							fmt.Printf("[ERROR] Command 'write_object': Argument '%s' must be in key=value format.\n", arg)
+				fmt.Printf("[ERROR] Command 'write_object': Argument '%s' must be in key=value format.\n", arg)
 				return
 			}
 			fields[parts[0]] = parts[1]
@@ -215,7 +215,7 @@ var handlers = map[string]func([]string, *ads.Client){
 		// Handle flgForce (bool)
 		flgForceStr, ok := fields["flgForce"]
 		if !ok {
-					fmt.Println("[ERROR] Command 'write_object': Missing required field 'flgForce'.")
+			fmt.Println("[ERROR] Command 'write_object': Missing required field 'flgForce'.")
 			return
 		}
 		var flgForce bool

@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"reflect"
 
-	"github.com/jarmoCluyse/ads-go/pkg/ads/types"
+	"github.com/jarmocluyse/ads-go/pkg/ads/types"
 )
 
 func (c *Client) WriteValue(port uint16, path string, value any) error {

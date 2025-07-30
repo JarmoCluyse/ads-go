@@ -5,7 +5,7 @@ import (
 	"os"
 
 	"github.com/chzyer/readline"
-	"github.com/jarmoCluyse/ads-go/pkg/ads"
+	"github.com/jarmocluyse/ads-go/pkg/ads"
 )
 
 func Commandline(client *ads.Client) {

@@ -4,7 +4,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/jarmoCluyse/ads-go/pkg/ads"
+	"github.com/jarmocluyse/ads-go/pkg/ads"
 )
 
 const (

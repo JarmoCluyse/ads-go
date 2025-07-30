@@ -4,8 +4,8 @@ import (
 	"log/slog"
 	"os"
 
-	"github.com/jarmoCluyse/ads-go/example/cli"
-	"github.com/jarmoCluyse/ads-go/pkg/ads"
+	"github.com/jarmocluyse/ads-go/example/cli"
+	"github.com/jarmocluyse/ads-go/pkg/ads"
 	"github.com/lmittmann/tint"
 )
 

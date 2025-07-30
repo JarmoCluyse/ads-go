@@ -4,7 +4,7 @@ import (
 	"encoding/binary"
 	"fmt"
 
-	"github.com/jarmoCluyse/ads-go/pkg/ads/types"
+	"github.com/jarmocluyse/ads-go/pkg/ads/types"
 )
 
 // WriteControl writes control data to an ADS device.

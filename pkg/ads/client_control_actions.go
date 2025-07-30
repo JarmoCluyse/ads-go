@@ -3,7 +3,7 @@ package ads
 import (
 	"fmt"
 
-	"github.com/jarmoCluyse/ads-go/pkg/ads/types"
+	"github.com/jarmocluyse/ads-go/pkg/ads/types"
 )
 
 // SetTcSystemToConfig sets the TwinCAT system to config mode.

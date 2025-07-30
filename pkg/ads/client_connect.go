@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"net"
 
-	"github.com/jarmoCluyse/ads-go/pkg/ads/constants"
-	"github.com/jarmoCluyse/ads-go/pkg/ads/types"
-	"github.com/jarmoCluyse/ads-go/pkg/ads/utils"
+	"github.com/jarmocluyse/ads-go/pkg/ads/constants"
+	"github.com/jarmocluyse/ads-go/pkg/ads/types"
+	"github.com/jarmocluyse/ads-go/pkg/ads/utils"
 )
 
 // Connect establishes a connection to the ADS router.

@@ -5,7 +5,7 @@ import (
 	"encoding/binary"
 	"fmt"
 
-	"github.com/jarmoCluyse/ads-go/pkg/ads/types"
+	"github.com/jarmocluyse/ads-go/pkg/ads/types"
 )
 
 // AdsTcSystemStateResponse represents the TwinCAT system state response.

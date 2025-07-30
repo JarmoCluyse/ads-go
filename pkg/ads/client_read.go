@@ -5,7 +5,7 @@ import (
 	"encoding/binary"
 	"fmt"
 
-	"github.com/jarmoCluyse/ads-go/pkg/ads/types"
+	"github.com/jarmocluyse/ads-go/pkg/ads/types"
 )
 
 func (c *Client) ReadValue(port uint16, path string) (any, error) {
@@ -39,7 +39,7 @@ func (c *Client) convertBufferToValue(data []byte, dataType types.AdsDataType, i
 	}
 
 	// If struct or array item
-	if ((len(dataType.ArrayInfo) == 0 || isArrItem) && len(dataType.SubItems) > 0) {
+	if (len(dataType.ArrayInfo) == 0 || isArrItem) && len(dataType.SubItems) > 0 {
 		result := make(map[string]any)
 		data = data[dataType.Offset:]
 		for _, subItem := range dataType.SubItems {

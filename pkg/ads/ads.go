@@ -3,9 +3,9 @@ package ads
 import (
 	"encoding/binary"
 
-	"github.com/jarmoCluyse/ads-go/pkg/ads/constants"
-	"github.com/jarmoCluyse/ads-go/pkg/ads/types"
-	"github.com/jarmoCluyse/ads-go/pkg/ads/utils"
+	"github.com/jarmocluyse/ads-go/pkg/ads/constants"
+	"github.com/jarmocluyse/ads-go/pkg/ads/types"
+	"github.com/jarmocluyse/ads-go/pkg/ads/utils"
 )
 
 // Struct for Ams address and port

@@ -5,8 +5,8 @@ import (
 	"encoding/binary"
 	"fmt"
 
-	"github.com/jarmoCluyse/ads-go/pkg/ads/types"
-	"github.com/jarmoCluyse/ads-go/pkg/ads/utils"
+	"github.com/jarmocluyse/ads-go/pkg/ads/types"
+	"github.com/jarmocluyse/ads-go/pkg/ads/utils"
 )
 
 // GetSymbol retrieves information about a symbol from the ADS server.

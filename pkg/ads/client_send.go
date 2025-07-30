@@ -16,6 +16,10 @@ type AdsCommandRequest struct {
 
 // send sends a command to the ADS router.
 func (c *Client) send(req AdsCommandRequest) ([]byte, error) {
+	if c.conn == nil {
+		c.logger.Error("send: Connection is nil, cannot send command")
+		return nil, fmt.Errorf("connection is not established")
+	}
 	c.logger.Debug("send: Preparing to send command", "command", req.Command.String(), "dataLength", len(req.Data))
 
 	invokeID, channel := c.getInvokeID()

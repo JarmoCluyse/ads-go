@@ -2,6 +2,7 @@ package ads
 
 import (
 	"bytes"
+	"io"
 	"log/slog"
 	"net"
 	"sync"
@@ -36,6 +37,10 @@ type ClientSettings struct {
 
 // NewClient creates a new ADS client.
 func NewClient(settings ClientSettings, logger *slog.Logger) *Client {
+	if logger == nil { // silent logger when not added
+		logger = slog.New(slog.NewTextHandler(io.Discard, nil))
+	}
+
 	logger.Info("NewClient: Initializing new ADS client.")
 	if settings.Timeout == 0 {
 		settings.Timeout = 2 * time.Second

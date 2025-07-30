@@ -1,4 +1,4 @@
-module github.com/JarmoCluyse/ads-go
+module github.com/jarmocluyse/ads-go
 
 go 1.24.4
 

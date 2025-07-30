@@ -1,10 +1,10 @@
-module github.com/jarmoCluyse/ads-go/example
+module github.com/jarmocluyse/ads-go/example
 
 go 1.24.4
 
 require (
 	github.com/chzyer/readline v1.5.1
-	github.com/jarmoCluyse/ads-go v1.0.0
+	github.com/jarmocluyse/ads-go v1.0.0
 	github.com/lmittmann/tint v1.1.2
 )
 
@@ -13,4 +13,4 @@ require (
 	golang.org/x/text v0.27.0 // indirect
 )
 
-replace github.com/jarmoCluyse/ads-go v1.0.0 => ../
+replace github.com/jarmocluyse/ads-go v1.0.0 => ../

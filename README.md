@@ -37,7 +37,7 @@ Example:
 
 ```go
 logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
-client := adsgo.NewClient(settings, logger)
+client := ads.NewClient(settings, logger)
 ```
 
 ---

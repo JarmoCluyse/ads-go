@@ -14,7 +14,6 @@ import (
 func (c *Client) receive() {
 	c.logger.Info("receive: Starting receive goroutine.")
 	defer func() {
-		c.conn.Close()
 		c.logger.Info("receive: Receive goroutine terminated.")
 	}()
 
@@ -115,7 +114,7 @@ type AmsPacket struct {
 }
 
 // parse the ams header
-// NOTE: we now at this point the length is correct
+// NOTE: we know at this point the length is correct
 func (c *Client) parseAmsPacket(data []byte) AmsPacket {
 	amsPacket := data[constants.AMSTCPHeaderLength:]
 	amsHeader := amsPacket[:constants.AMSHeaderLength]

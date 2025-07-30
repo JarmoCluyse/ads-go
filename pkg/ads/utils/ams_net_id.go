@@ -1,9 +1,15 @@
 package utils
 
 import (
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
+)
+
+var (
+	errInvalidAmsNetId     = errors.New("invalid AmsNetId")
+	errInvalidAmsNetIdPart = errors.New("invalid part in AmsNetId")
 )
 
 // Converts given AmsAddress struct to string "amsNetId:port"
@@ -15,13 +21,13 @@ func AmsAddressToString(amsNetId string, adsPort uint16) string {
 func AmsNetIdStrToByteArray(s string) ([]byte, error) {
 	parts := strings.Split(s, ".")
 	if len(parts) != 6 {
-		return nil, fmt.Errorf("invalid AmsNetId: %s", s)
+		return nil, fmt.Errorf("%w: %s", errInvalidAmsNetId, s)
 	}
 	bytes := make([]byte, 6)
 	for i, part := range parts {
 		val, err := strconv.Atoi(part)
 		if err != nil {
-			return nil, fmt.Errorf("invalid part in AmsNetId: %s", part)
+			return nil, fmt.Errorf("%w: %s", errInvalidAmsNetIdPart, part)
 		}
 		bytes[i] = byte(val)
 	}

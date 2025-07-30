@@ -240,11 +240,23 @@ func (c *Client) convertValueToBuffer(value any, dataType types.AdsDataType, isA
 				bufferSize = 160 // Default WSTRING size: 80 chars * 2 bytes (UTF-16LE)
 			}
 			wbuf := make([]byte, bufferSize)
-			// TODO: Proper UTF-16LE encoding
-			encoded := []byte(val)
-			// Reserve last two bytes for null-terminator (UTF-16)
-			copyLen := min(len(encoded), bufferSize-2)
-			copy(wbuf, encoded[:copyLen])
+			// Proper UTF-16LE encoding
+			runes := []rune(val)
+			utf16Units := make([]uint16, len(runes))
+			for i, r := range runes {
+				utf16Units[i] = uint16(r)
+			}
+			// Write encoded runes as little-endian bytes
+			byteIdx := 0
+			maxChars := (bufferSize / 2) - 1 // Last two bytes are for null-terminator
+			for i := 0; i < len(utf16Units) && i < maxChars; i++ {
+				b0 := byte(utf16Units[i] & 0xFF)
+				b1 := byte(utf16Units[i] >> 8)
+				wbuf[byteIdx] = b0
+				wbuf[byteIdx+1] = b1
+				byteIdx += 2
+			}
+			// Null-terminated, wbuf is already zero-padded
 			buf.Write(wbuf)
 		} else {
 			return nil, fmt.Errorf("invalid type for ADST_WSTRING: %T", value)

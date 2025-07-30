@@ -18,7 +18,7 @@ func (c *Client) GetSymbol(port uint16, path string) (*types.AdsSymbol, error) {
 		uint32(types.ADSReservedIndexGroupSymbolInfoByNameEx),
 		uint32(0),
 		uint32(0xFFFFFFFF),
-		utils.EncodeStringToPlcStringBuffer(path, c.settings.AdsSymbolsUseUtf8),
+		utils.EncodeStringToPlcStringBuffer(path),
 	)
 	if err != nil {
 		c.logger.Error("GetSymbol: Failed to send ADS command", "error", err)
@@ -103,7 +103,7 @@ func (c *Client) parseAdsSymbol(data []byte) (types.AdsSymbol, error) {
 	if err := binary.Read(reader, binary.LittleEndian, &name); err != nil {
 		return types.AdsSymbol{}, fmt.Errorf("parseAdsSymbol: failed to read Name: %w (remaining bytes: %d)", err, reader.Len())
 	}
-	symbol.Name = utils.DecodePlcStringBuffer(name, c.settings.AdsSymbolsUseUtf8)
+	symbol.Name = utils.DecodePlcStringBuffer(name)
 	c.logger.Debug("parseAdsSymbol: read Name", "value", symbol.Name, "raw", name, "remainingBytes", reader.Len())
 
 	// NOTE: .. name
@@ -111,7 +111,7 @@ func (c *Client) parseAdsSymbol(data []byte) (types.AdsSymbol, error) {
 	if err := binary.Read(reader, binary.LittleEndian, &typeName); err != nil {
 		return types.AdsSymbol{}, fmt.Errorf("parseAdsSymbol: failed to read TypeName: %w (remaining bytes: %d)", err, reader.Len())
 	}
-	symbol.Type = utils.DecodePlcStringBuffer(typeName, c.settings.AdsSymbolsUseUtf8)
+	symbol.Type = utils.DecodePlcStringBuffer(typeName)
 	c.logger.Debug("parseAdsSymbol: read Type", "value", symbol.Type, "raw", typeName, "remainingBytes", reader.Len())
 
 	// NOTE: .. comment
@@ -119,7 +119,7 @@ func (c *Client) parseAdsSymbol(data []byte) (types.AdsSymbol, error) {
 	if err := binary.Read(reader, binary.LittleEndian, &comment); err != nil {
 		return types.AdsSymbol{}, fmt.Errorf("parseAdsSymbol: failed to read Comment: %w (remaining bytes: %d)", err, reader.Len())
 	}
-	symbol.Comment = utils.DecodePlcStringBuffer(comment, c.settings.AdsSymbolsUseUtf8)
+	symbol.Comment = utils.DecodePlcStringBuffer(comment)
 	c.logger.Debug("parseAdsSymbol: read Comment", "value", symbol.Comment, "raw", comment, "remainingBytes", reader.Len())
 
 	// rest

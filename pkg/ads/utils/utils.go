@@ -5,8 +5,7 @@ import (
 	"encoding/binary"
 	"strings"
 	"unicode/utf16"
-
-	"golang.org/x/text/encoding/charmap"
+	// "golang.org/x/text/encoding/charmap"
 )
 
 // Trims given PLC string until '\\0' is found (removes empty bytes from the end)
@@ -17,24 +16,21 @@ func TrimPlcString(str string) string {
 	return str
 }
 
-// Decodes provided []byte to PLC STRING using cp1252 or UTF-8, also trims zeroes
-func DecodePlcStringBuffer(data []byte, utf8 bool) string {
+// Decodes provided []byte to PLC STRING
+func DecodePlcStringBuffer(data []byte) string {
 	var decoded string
-	if utf8 {
-		decoded = string(data)
-	} else {
-		decoded, _ = charmap.Windows1252.NewDecoder().String(string(data))
-	}
+	decoded = string(data)
+	// this will be needed for older versions of twincat
+	// decoded, _ = charmap.Windows1252.NewDecoder().String(string(data))
 	return TrimPlcString(decoded)
 }
 
-// Encodes provided string to []byte as PLC STRING using cp1252 or UTF-8
-func EncodeStringToPlcStringBuffer(str string, utf8 bool) []byte {
-	if utf8 {
-		return []byte(str)
-	}
-	encoded, _ := charmap.Windows1252.NewEncoder().String(str)
-	return []byte(encoded)
+// Encodes provided string to []byte as PLC STRING
+func EncodeStringToPlcStringBuffer(str string) []byte {
+	return []byte(str)
+	// this will be needed for older versions of twincat
+	// encoded, _ := charmap.Windows1252.NewEncoder().String(str)
+	// return []byte(encoded)
 }
 
 // Decodes provided []byte to PLC WSTRING using ucs2 encoding, also trims zeroes

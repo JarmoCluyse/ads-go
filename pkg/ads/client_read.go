@@ -21,7 +21,6 @@ func (c *Client) ReadValue(port uint16, path string) (any, error) {
 	if err != nil {
 		return nil, fmt.Errorf("ReadValue: failed to get data type: %w", err)
 	}
-	fmt.Println("dataType", dataType)
 
 	data, err := c.ReadRaw(port, symbol.IndexGroup, symbol.IndexOffset, symbol.Size)
 	if err != nil {

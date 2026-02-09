@@ -45,6 +45,11 @@ func (c *Client) Connect() error {
 func (c *Client) Disconnect() error {
 	c.logger.Debug("Disconnect: Attempting to disconnect.")
 	if c.conn != nil {
+		// Unsubscribe from all active subscriptions before disconnecting
+		if err := c.UnsubscribeAll(); err != nil {
+			c.logger.Warn("Disconnect: Error unsubscribing from all subscriptions", "error", err)
+		}
+
 		err := c.unregisterAdsPort()
 		if err != nil {
 			c.logger.Error("Disconnect: Error unregistering ADS port", "error", err)

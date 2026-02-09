@@ -52,6 +52,13 @@ func (c *Client) processReceiveBuffer() {
 		packet := c.parseAmsPacket(fullPacket)
 		c.logger.Debug("receive: Parsed AMS packet", "invokeID", packet.InvokeId, "data", packet)
 
+		// Check if this is a notification packet (command 8)
+		if packet.AdsCommand == types.ADSCommandNotification {
+			c.logger.Debug("receive: Received notification packet, routing to handleNotification")
+			c.handleNotification(packet.Data)
+			continue // Don't look for request channel, notifications don't have invokeIDs
+		}
+
 		c.mutex.Lock()
 		ch, ok := c.requests[packet.InvokeId]
 		c.mutex.Unlock()

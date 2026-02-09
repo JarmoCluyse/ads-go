@@ -17,12 +17,13 @@ func main() {
 
 	handler := tint.NewHandler(os.Stdout, &tint.Options{Level: logLevel})
 	slog.SetDefault(slog.New(handler))
-	// logger := slog.Default()
 
 	slog.Info("main: Starting application")
 
 	settings := cli.GetConfig()
 	slog.Info("main: Creating new ADS client with settings", "settings", settings)
+	// logger := slog.Default()
+	// client := ads.NewClient(settings, logger)
 	client := ads.NewClient(settings, nil)
 	slog.Debug("main: ADS client created.")
 

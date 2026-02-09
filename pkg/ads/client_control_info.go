@@ -61,7 +61,7 @@ func (c *Client) ReadDeviceInfo() (*adsstateinfo.DeviceInfo, error) {
 	c.logger.Debug("ReadDeviceInfo: Received raw response data", "length", len(data), "data", fmt.Sprintf("%x", data))
 
 	if len(data) < 4 {
-		c.logger.Error("ReadTcSystemState: Invalid response length", "length", len(data), "expected", "at least 4")
+		c.logger.Error("ReadDeviceInfo: Invalid response length", "length", len(data), "expected", "at least 4")
 		return nil, fmt.Errorf("invalid response length: %d", len(data))
 	}
 	payload, err := adserrors.StripAdsError(data)

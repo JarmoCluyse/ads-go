@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net"
 
+	amsbuilder "github.com/jarmocluyse/ads-go/pkg/ads/ams-builder"
 	"github.com/jarmocluyse/ads-go/pkg/ads/constants"
 	"github.com/jarmocluyse/ads-go/pkg/ads/types"
 	"github.com/jarmocluyse/ads-go/pkg/ads/utils"
@@ -87,7 +88,7 @@ func (c *Client) setupPlcConnection() error {
 // registerAdsPort
 func (c *Client) registerAdsPort() error {
 	c.logger.Debug("registerAdsPort: Creating AMS TCP header for port connection.")
-	amsTcpHeader := createAmsTcpHeader(types.AMSTCPPortConnect, 2)
+	amsTcpHeader := amsbuilder.BuildAmsTcpHeader(types.AMSTCPPortConnect, 2)
 	data := make([]byte, 2)
 	binary.LittleEndian.PutUint16(data, 0) // Let router decide port
 	packet := append(amsTcpHeader, data...)
@@ -125,7 +126,7 @@ func (c *Client) registerAdsPort() error {
 // unregisterAdsPort
 func (c *Client) unregisterAdsPort() error {
 	c.logger.Debug("unregisterAdsPort: Creating AMS TCP header for port close.")
-	amsTcpHeader := createAmsTcpHeader(types.AMSTCPPortClose, 2)
+	amsTcpHeader := amsbuilder.BuildAmsTcpHeader(types.AMSTCPPortClose, 2)
 	data := make([]byte, 2)
 	binary.LittleEndian.PutUint16(data, c.localAmsAddr.Port)
 	packet := append(amsTcpHeader, data...)

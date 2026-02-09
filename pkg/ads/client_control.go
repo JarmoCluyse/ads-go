@@ -1,25 +1,23 @@
 package ads
 
 import (
-	"encoding/binary"
 	"fmt"
 
 	adserrors "github.com/jarmocluyse/ads-go/pkg/ads/ads-errors"
+	adsrequests "github.com/jarmocluyse/ads-go/pkg/ads/ads-requests"
 	"github.com/jarmocluyse/ads-go/pkg/ads/types"
 )
 
 // WriteControl writes control data to an ADS device.
 func (c *Client) WriteControl(adsState types.ADSState, deviceState uint16, targetPort uint16) error {
 	c.logger.Debug("WriteControl: Setting ADS state", "adsState", adsState.String(), "deviceState", fmt.Sprintf("0x%x", deviceState))
-	data := make([]byte, 8)
-	binary.LittleEndian.PutUint16(data[0:2], uint16(adsState)) // stae to send
-	binary.LittleEndian.PutUint16(data[2:4], deviceState)      // device state to send (normally 0)
-	binary.LittleEndian.PutUint32(data[4:8], 0)                // DataLength, 0 for state change
+
+	payload := adsrequests.BuildWriteControlRequest(uint16(adsState), deviceState)
 
 	req := AdsCommandRequest{
 		Command:    types.ADSCommandWriteControl,
 		TargetPort: targetPort,
-		Data:       data,
+		Data:       payload,
 	}
 	respData, err := c.send(req)
 	if err != nil {

@@ -1,10 +1,9 @@
 package ads
 
 import (
-	"bytes"
-	"encoding/binary"
 	"fmt"
 
+	adsprimitives "github.com/jarmocluyse/ads-go/pkg/ads/ads-primitives"
 	"github.com/jarmocluyse/ads-go/pkg/ads/types"
 )
 
@@ -73,43 +72,31 @@ func (c *Client) convertBufferToValue(data []byte, dataType types.AdsDataType, i
 	}
 	switch dataType.DataType {
 	case types.ADST_VOID:
-		return nil, nil // Void type, no value to return
+		return nil, nil
 	case types.ADST_BIT:
-		return data[0] != 0, nil // Bit type, return boolean value
-	case types.ADST_INT8, types.ADST_UINT8:
-		return data[0], nil
-	case types.ADST_INT16, types.ADST_UINT16:
-		var value int16
-		if err := binary.Read(bytes.NewReader(data), binary.LittleEndian, &value); err != nil {
-			return nil, err
-		}
-		return value, nil
-	case types.ADST_INT32, types.ADST_UINT32:
-		var value int32
-		if err := binary.Read(bytes.NewReader(data), binary.LittleEndian, &value); err != nil {
-			return nil, err
-		}
-		return value, nil
-	case types.ADST_INT64, types.ADST_UINT64:
-		var value int64
-		if err := binary.Read(bytes.NewReader(data), binary.LittleEndian, &value); err != nil {
-			return nil, err
-		}
-		return value, nil
+		return adsprimitives.ReadBool(data)
+	case types.ADST_INT8:
+		return adsprimitives.ReadInt8(data)
+	case types.ADST_UINT8:
+		return adsprimitives.ReadUint8(data)
+	case types.ADST_INT16:
+		return adsprimitives.ReadInt16(data)
+	case types.ADST_UINT16:
+		return adsprimitives.ReadUint16(data)
+	case types.ADST_INT32:
+		return adsprimitives.ReadInt32(data)
+	case types.ADST_UINT32:
+		return adsprimitives.ReadUint32(data)
+	case types.ADST_INT64:
+		return adsprimitives.ReadInt64(data)
+	case types.ADST_UINT64:
+		return adsprimitives.ReadUint64(data)
 	case types.ADST_REAL32:
-		var value float32
-		if err := binary.Read(bytes.NewReader(data), binary.LittleEndian, &value); err != nil {
-			return nil, err
-		}
-		return value, nil
+		return adsprimitives.ReadFloat32(data)
 	case types.ADST_REAL64:
-		var value float64
-		if err := binary.Read(bytes.NewReader(data), binary.LittleEndian, &value); err != nil {
-			return nil, err
-		}
-		return value, nil
+		return adsprimitives.ReadFloat64(data)
 	case types.ADST_STRING, types.ADST_WSTRING:
-		return string(data), nil
+		return adsprimitives.ReadString(data)
 	case types.ADST_BIGTYPE:
 		return nil, fmt.Errorf("todo: this data type")
 	}

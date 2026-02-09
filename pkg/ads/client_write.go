@@ -2,10 +2,10 @@ package ads
 
 import (
 	"bytes"
-	"encoding/binary"
 	"fmt"
 	"reflect"
 
+	adsprimitives "github.com/jarmocluyse/ads-go/pkg/ads/ads-primitives"
 	"github.com/jarmocluyse/ads-go/pkg/ads/types"
 )
 
@@ -135,101 +135,107 @@ func (c *Client) convertValueToBuffer(value any, dataType types.AdsDataType, isA
 		if !ok {
 			return nil, fmt.Errorf("invalid type for ADST_BIT: %T (expected bool)", value)
 		}
-		var bitVal byte
-		if b {
-			bitVal = 1
-		} else {
-			bitVal = 0
-		}
-		buf.WriteByte(bitVal)
+		buf.Write(adsprimitives.WriteBool(b))
 	case types.ADST_INT8:
 		cast, ok := toInt8(value)
 		if !ok {
 			return nil, fmt.Errorf("invalid type for ADST_INT8: %T", value)
 		}
-		buf.WriteByte(byte(cast))
+		buf.Write(adsprimitives.WriteInt8(cast))
 	case types.ADST_UINT8:
 		cast, ok := toUint8(value)
 		if !ok {
 			return nil, fmt.Errorf("invalid type for ADST_UINT8: %T", value)
 		}
-		buf.WriteByte(cast)
+		buf.Write(adsprimitives.WriteUint8(cast))
 	case types.ADST_INT16:
 		cast, ok := toInt16(value)
 		if !ok {
 			return nil, fmt.Errorf("invalid type for ADST_INT16: %T", value)
 		}
-		if err := binary.Write(buf, binary.LittleEndian, cast); err != nil {
+		data, err := adsprimitives.WriteInt16(cast)
+		if err != nil {
 			return nil, err
 		}
+		buf.Write(data)
 	case types.ADST_UINT16:
 		cast, ok := toUint16(value)
 		if !ok {
 			return nil, fmt.Errorf("invalid type for ADST_UINT16: %T", value)
 		}
-		if err := binary.Write(buf, binary.LittleEndian, cast); err != nil {
+		data, err := adsprimitives.WriteUint16(cast)
+		if err != nil {
 			return nil, err
 		}
+		buf.Write(data)
 	case types.ADST_INT32:
 		cast, ok := toInt32(value)
 		if !ok {
 			return nil, fmt.Errorf("invalid type for ADST_INT32: %T", value)
 		}
-		if err := binary.Write(buf, binary.LittleEndian, cast); err != nil {
+		data, err := adsprimitives.WriteInt32(cast)
+		if err != nil {
 			return nil, err
 		}
+		buf.Write(data)
 	case types.ADST_UINT32:
 		cast, ok := toUint32(value)
 		if !ok {
 			return nil, fmt.Errorf("invalid type for ADST_UINT32: %T", value)
 		}
-		if err := binary.Write(buf, binary.LittleEndian, cast); err != nil {
+		data, err := adsprimitives.WriteUint32(cast)
+		if err != nil {
 			return nil, err
 		}
+		buf.Write(data)
 	case types.ADST_INT64:
 		cast, ok := toInt64(value)
 		if !ok {
 			return nil, fmt.Errorf("invalid type for ADST_INT64: %T", value)
 		}
-		if err := binary.Write(buf, binary.LittleEndian, cast); err != nil {
+		data, err := adsprimitives.WriteInt64(cast)
+		if err != nil {
 			return nil, err
 		}
+		buf.Write(data)
 	case types.ADST_UINT64:
 		cast, ok := toUint64(value)
 		if !ok {
 			return nil, fmt.Errorf("invalid type for ADST_UINT64: %T", value)
 		}
-		if err := binary.Write(buf, binary.LittleEndian, cast); err != nil {
+		data, err := adsprimitives.WriteUint64(cast)
+		if err != nil {
 			return nil, err
 		}
+		buf.Write(data)
 	case types.ADST_REAL32:
 		cast, ok := toFloat32(value)
 		if !ok {
 			return nil, fmt.Errorf("invalid type for ADST_REAL32: %T", value)
 		}
-		if err := binary.Write(buf, binary.LittleEndian, cast); err != nil {
+		data, err := adsprimitives.WriteFloat32(cast)
+		if err != nil {
 			return nil, err
 		}
+		buf.Write(data)
 	case types.ADST_REAL64:
 		cast, ok := toFloat64(value)
 		if !ok {
 			return nil, fmt.Errorf("invalid type for ADST_REAL64: %T", value)
 		}
-		if err := binary.Write(buf, binary.LittleEndian, cast); err != nil {
+		data, err := adsprimitives.WriteFloat64(cast)
+		if err != nil {
 			return nil, err
 		}
+		buf.Write(data)
 	case types.ADST_STRING:
 		if val, ok := value.(string); ok {
 			bufferSize := int(dataType.Size)
 			if bufferSize <= 0 {
 				bufferSize = 80 // Default ADS STRING length if not specified
 			}
-			strBuf := make([]byte, bufferSize)
-			// Reserve last byte for null-terminator
-			copyLen := min(len(val), bufferSize-1)
-			copy(strBuf, val[:copyLen])
-			// strBuf is already zero-padded (Go makes with zeroes)
-			buf.Write(strBuf)
+			data := adsprimitives.WriteString(val, bufferSize)
+			buf.Write(data)
 		} else {
 			return nil, fmt.Errorf("invalid type for ADST_STRING: %T", value)
 		}

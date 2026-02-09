@@ -5,6 +5,8 @@ import (
 	"encoding/binary"
 	"fmt"
 
+	adserrors "github.com/jarmocluyse/ads-go/pkg/ads/ads-errors"
+	adsheader "github.com/jarmocluyse/ads-go/pkg/ads/ads-header"
 	"github.com/jarmocluyse/ads-go/pkg/ads/types"
 )
 
@@ -26,19 +28,12 @@ func (c *Client) ReadRaw(port uint16, indexGroup uint32, indexOffset uint32, siz
 	if err != nil {
 		return nil, fmt.Errorf("ReadRaw: failed to send ADS command: %w", err)
 	}
-	errorCode := binary.LittleEndian.Uint32(response[0:4])
-	if errorCode != 0 {
-		errorString := types.ADSError[errorCode]
-		c.logger.Error("ReadTcSystemState: ADS error received", "errorCode", fmt.Sprintf("0x%x", errorCode), "error", errorString)
-		return nil, fmt.Errorf("ADS error: 0x%x", errorCode)
+	payload, err := adsheader.StripAdsHeader(response)
+	if err != nil {
+		c.logger.Error("ReadRaw: ADS header error", "error", err)
+		return nil, err
 	}
-	dataLen := binary.LittleEndian.Uint32(response[4:8])
-	dataContent := response[8:]
-	if len(dataContent) < int(dataLen) {
-		c.logger.Error("received to little data", "length", dataLen, "receivedLen", len(dataContent))
-		return nil, fmt.Errorf("received to little data")
-	}
-	return dataContent, nil
+	return payload, nil
 }
 
 // WriteRaw writes raw data to the ADS server.
@@ -60,11 +55,10 @@ func (c *Client) WriteRaw(port uint16, indexGroup uint32, indexOffset uint32, da
 	if err != nil {
 		return fmt.Errorf("WriteRaw: failed to send ADS command: %w", err)
 	}
-	errorCode := binary.LittleEndian.Uint32(res[0:4])
-	if errorCode != 0 {
-		errorString := types.ADSError[errorCode]
-		c.logger.Error("ReadTcSystemState: ADS error received", "errorCode", fmt.Sprintf("0x%x", errorCode), "error", errorString)
-		return fmt.Errorf("ADS error: 0x%x", errorCode)
+	_, err = adserrors.StripAdsError(res)
+	if err != nil {
+		c.logger.Error("WriteRaw: ADS error received", "error", err)
+		return err
 	}
 
 	return nil
@@ -92,17 +86,10 @@ func (c *Client) ReadWriteRaw(port uint16, indexGroup uint32, indexOffset uint32
 		return nil, fmt.Errorf("ReadWriteRaw: failed to send ADS command: %w", err)
 	}
 
-	errorCode := binary.LittleEndian.Uint32(response[0:4])
-	if errorCode != 0 {
-		errorString := types.ADSError[errorCode]
-		c.logger.Error("ReadTcSystemState: ADS error received", "errorCode", fmt.Sprintf("0x%x", errorCode), "error", errorString)
-		return nil, fmt.Errorf("ADS error: 0x%x", errorCode)
+	data, err := adsheader.StripAdsHeader(response)
+	if err != nil {
+		c.logger.Error("ReadWriteRaw: ADS header error", "error", err)
+		return nil, err
 	}
-	Len := binary.LittleEndian.Uint32(response[4:8])
-	Data := response[8:]
-	if len(Data) < int(Len) {
-		c.logger.Error("received to little data", "length", Len, "receivedLen", len(Data))
-		return nil, fmt.Errorf("received to little data")
-	}
-	return Data, nil
+	return data, nil
 }

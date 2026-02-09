@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 
+	adserrors "github.com/jarmocluyse/ads-go/pkg/ads/ads-errors"
 	"github.com/jarmocluyse/ads-go/pkg/ads/constants"
 	"github.com/jarmocluyse/ads-go/pkg/ads/types"
 	"github.com/jarmocluyse/ads-go/pkg/ads/utils"
@@ -61,8 +62,9 @@ func (c *Client) processReceiveBuffer() {
 		if ok {
 			c.logger.Debug("receive: Found channel for InvokeID, sending response.", "invokeID", packet.InvokeId)
 			if packet.ErrorCode != 0 {
-				c.logger.Error("receive: ADS error received", "invokeID", packet.InvokeId, "errorCode", packet.ErrorCode, "errorDesc", types.ADSError[packet.ErrorCode])
-				ch <- Response{Error: fmt.Errorf("ADS error: %s", types.ADSError[packet.ErrorCode])}
+				errorString := adserrors.ErrorCodeToString(packet.ErrorCode)
+				c.logger.Error("receive: ADS error received", "invokeID", packet.InvokeId, "errorCode", packet.ErrorCode, "errorDesc", errorString)
+				ch <- Response{Error: fmt.Errorf("ADS error: %s", errorString)}
 			} else {
 				ch <- Response{Data: packet.Data}
 			}

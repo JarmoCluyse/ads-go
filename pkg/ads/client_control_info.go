@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"fmt"
 
+	adserrors "github.com/jarmocluyse/ads-go/pkg/ads/ads-errors"
 	"github.com/jarmocluyse/ads-go/pkg/ads/types"
 )
 
@@ -35,15 +36,14 @@ func (c *Client) ReadTcSystemState() (*AdsTcSystemStateResponse, error) {
 		return nil, fmt.Errorf("invalid response length: %d", len(data))
 	}
 
-	errorCode := binary.LittleEndian.Uint32(data[0:4])
-	if errorCode != 0 {
-		errorString := types.ADSError[errorCode]
-		c.logger.Error("ReadTcSystemState: ADS error received", "errorCode", fmt.Sprintf("0x%x", errorCode), "error", errorString)
-		return nil, fmt.Errorf("ADS error: 0x%x", errorCode)
+	payload, err := adserrors.StripAdsError(data)
+	if err != nil {
+		c.logger.Error("ReadTcSystemState: ADS error received", "error", err)
+		return nil, err
 	}
 
-	adsState := binary.LittleEndian.Uint16(data[4:6])
-	deviceState := binary.LittleEndian.Uint16(data[6:8])
+	adsState := binary.LittleEndian.Uint16(payload[0:2])
+	deviceState := binary.LittleEndian.Uint16(payload[2:4])
 	respState := &AdsTcSystemStateResponse{
 		AdsState:    types.ADSState(adsState),
 		DeviceState: deviceState,
@@ -79,15 +79,14 @@ func (c *Client) ReadDeviceInfo() (*AdsReadDeviceInfoResponse, error) {
 		c.logger.Error("ReadTcSystemState: Invalid response length", "length", len(data), "expected", "at least 4")
 		return nil, fmt.Errorf("invalid response length: %d", len(data))
 	}
-	errorCode := binary.LittleEndian.Uint32(data[0:4])
-	if errorCode != 0 {
-		errorString := types.ADSError[errorCode]
-		c.logger.Error("ReadTcSystemState: ADS error received", "errorCode", fmt.Sprintf("0x%x", errorCode), "error", errorString)
-		return nil, fmt.Errorf("ADS error: 0x%x", errorCode)
+	payload, err := adserrors.StripAdsError(data)
+	if err != nil {
+		c.logger.Error("ReadDeviceInfo: ADS error received", "error", err)
+		return nil, err
 	}
 
 	// Handle cases where only the error code is returned (e.g., older/embedded runtimes)
-	if len(data) == 4 {
+	if len(payload) == 0 {
 		return &AdsReadDeviceInfoResponse{
 				MajorVersion: 0,
 				MinorVersion: 0,
@@ -97,15 +96,15 @@ func (c *Client) ReadDeviceInfo() (*AdsReadDeviceInfoResponse, error) {
 			nil
 	}
 
-	if len(data) < 24 {
-		c.logger.Error("ReadDeviceInfo: Invalid response length for device info", "length", len(data), "expected", "at least 24")
-		return nil, fmt.Errorf("invalid response length for device info: %d", len(data))
+	if len(payload) < 20 {
+		c.logger.Error("ReadDeviceInfo: Invalid response length for device info", "length", len(payload), "expected", "at least 20")
+		return nil, fmt.Errorf("invalid response length for device info: %d", len(payload))
 	}
 	resp := &AdsReadDeviceInfoResponse{
-		MajorVersion: data[4],
-		MinorVersion: data[5],
-		VersionBuild: binary.LittleEndian.Uint16(data[6:8]),
-		DeviceName:   string(bytes.Trim(data[8:24], "\x00")),
+		MajorVersion: payload[0],
+		MinorVersion: payload[1],
+		VersionBuild: binary.LittleEndian.Uint16(payload[2:4]),
+		DeviceName:   string(bytes.Trim(payload[4:20], "\x00")),
 	}
 	c.logger.Info("ReadDeviceInfo: Successfully parsed device info", "deviceInfo", resp)
 	return resp, nil

@@ -1,4 +1,4 @@
-package types
+package adserrors
 
 // ADSError is a map of ADS error codes to their messages.
 // Source: Beckhoff InfoSys

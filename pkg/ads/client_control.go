@@ -4,6 +4,7 @@ import (
 	"encoding/binary"
 	"fmt"
 
+	adserrors "github.com/jarmocluyse/ads-go/pkg/ads/ads-errors"
 	"github.com/jarmocluyse/ads-go/pkg/ads/types"
 )
 
@@ -31,11 +32,9 @@ func (c *Client) WriteControl(adsState types.ADSState, deviceState uint16, targe
 		c.logger.Error("WriteControl: Invalid response length", "length", len(respData), "expected", "at least 4")
 		return fmt.Errorf("invalid response length: %d", len(respData))
 	}
-	errorCode := binary.LittleEndian.Uint32(respData[0:4])
-	if errorCode != 0 {
-		errorString := types.ADSError[errorCode]
-		c.logger.Error("WriteControl: ADS error received", "errorCode", fmt.Sprintf("0x%x", errorCode), "error", errorString)
-		return fmt.Errorf("ADS error: 0x%x", errorCode)
+	if err := adserrors.CheckAdsError(respData[0:4]); err != nil {
+		c.logger.Error("WriteControl: ADS error received", "error", err)
+		return err
 	}
 	c.logger.Info("WriteControl: Successfully wrote control")
 	return nil

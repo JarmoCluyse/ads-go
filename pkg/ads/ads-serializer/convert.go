@@ -1,8 +1,13 @@
-package ads
+package adsserializer
 
-// NOTE: these are needed so a panic does not happen
-// Type conversion helpers for ADS writing. These convert interface{} to the correct Go type for binary.Write, returning (value, ok).
+import "reflect"
 
+// Type conversion helpers for ADS value serialization.
+// These convert interface{} to the correct Go type with range checking,
+// preventing panics and ensuring data integrity.
+
+// toInt8 converts any to int8 with range checking.
+// Supports: int8, int, int16, int32, int64 (with bounds checking).
 func toInt8(value any) (int8, bool) {
 	switch v := value.(type) {
 	case int8:
@@ -28,6 +33,8 @@ func toInt8(value any) (int8, bool) {
 	return 0, false
 }
 
+// toUint8 converts any to uint8 with range checking.
+// Supports: uint8, int, uint16, uint32, uint64 (with bounds checking).
 func toUint8(value any) (uint8, bool) {
 	switch v := value.(type) {
 	case uint8:
@@ -53,6 +60,8 @@ func toUint8(value any) (uint8, bool) {
 	return 0, false
 }
 
+// toInt16 converts any to int16 with range checking.
+// Supports: int16, int, int32, int64 (with bounds checking).
 func toInt16(value any) (int16, bool) {
 	switch v := value.(type) {
 	case int16:
@@ -76,6 +85,8 @@ func toInt16(value any) (int16, bool) {
 	return 0, false
 }
 
+// toUint16 converts any to uint16 with range checking.
+// Supports: uint16, int, uint32, uint64 (with bounds checking).
 func toUint16(value any) (uint16, bool) {
 	switch v := value.(type) {
 	case uint16:
@@ -99,6 +110,8 @@ func toUint16(value any) (uint16, bool) {
 	return 0, false
 }
 
+// toInt32 converts any to int32 with range checking.
+// Supports: int32, int, int64 (with bounds checking).
 func toInt32(value any) (int32, bool) {
 	switch v := value.(type) {
 	case int32:
@@ -115,6 +128,8 @@ func toInt32(value any) (int32, bool) {
 	return 0, false
 }
 
+// toUint32 converts any to uint32 with range checking.
+// Supports: uint32, int, uint64 (with bounds checking).
 func toUint32(value any) (uint32, bool) {
 	switch v := value.(type) {
 	case uint32:
@@ -131,6 +146,8 @@ func toUint32(value any) (uint32, bool) {
 	return 0, false
 }
 
+// toInt64 converts any to int64.
+// Supports: int64, int.
 func toInt64(value any) (int64, bool) {
 	switch v := value.(type) {
 	case int64:
@@ -141,6 +158,8 @@ func toInt64(value any) (int64, bool) {
 	return 0, false
 }
 
+// toUint64 converts any to uint64.
+// Supports: uint64, int (non-negative).
 func toUint64(value any) (uint64, bool) {
 	switch v := value.(type) {
 	case uint64:
@@ -153,6 +172,8 @@ func toUint64(value any) (uint64, bool) {
 	return 0, false
 }
 
+// toFloat32 converts any to float32.
+// Supports: float32, float64, int.
 func toFloat32(value any) (float32, bool) {
 	switch v := value.(type) {
 	case float32:
@@ -165,6 +186,8 @@ func toFloat32(value any) (float32, bool) {
 	return 0, false
 }
 
+// toFloat64 converts any to float64.
+// Supports: float64, float32, int.
 func toFloat64(value any) (float64, bool) {
 	switch v := value.(type) {
 	case float64:
@@ -175,4 +198,34 @@ func toFloat64(value any) (float64, bool) {
 		return float64(v), true
 	}
 	return 0, false
+}
+
+// toAnySlice converts a slice of any element type (including nested slices) to []any recursively.
+// This is used for handling arrays when the user provides strongly-typed slices.
+//
+// Example:
+//
+//	[]int{1, 2, 3} -> []any{1, 2, 3}
+//	[][]int{{1, 2}, {3, 4}} -> []any{[]any{1, 2}, []any{3, 4}}
+func toAnySlice(value any) ([]any, bool) {
+	v := reflect.ValueOf(value)
+	if v.Kind() != reflect.Slice && v.Kind() != reflect.Array {
+		return nil, false
+	}
+	length := v.Len()
+	result := make([]any, length)
+	for i := range length {
+		elem := v.Index(i).Interface()
+		// Recursively convert nested slices
+		if reflect.ValueOf(elem).Kind() == reflect.Slice || reflect.ValueOf(elem).Kind() == reflect.Array {
+			if subSlice, ok := toAnySlice(elem); ok {
+				result[i] = subSlice
+			} else {
+				result[i] = elem
+			}
+		} else {
+			result[i] = elem
+		}
+	}
+	return result, true
 }

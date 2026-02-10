@@ -7,7 +7,7 @@
 [![Build](https://github.com/JarmoCluyse/ads-go/actions/workflows/build.yml/badge.svg)](https://github.com/JarmoCluyse/ads-go/actions/workflows/build.yml)
 [![Coverage](https://codecov.io/gh/JarmoCluyse/ads-go/branch/main/graph/badge.svg)](https://codecov.io/gh/JarmoCluyse/ads-go)
 [![Go Version](https://img.shields.io/github/go-mod/go-version/jarmocluyse/ads-go)](https://github.com/jarmocluyse/ads-go)
-[![Release](https://img.shields.io/github/v/release/jarmocluyse/ads-go)](https://github.com/jarmocluyse/ads-go/releases)
+[![Release](https://img.shields.io/github/v/release/jarmocluyse/ads-go?include_prereleases)](https://github.com/jarmocluyse/ads-go/releases)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
 Beckhoff TwinCAT ADS client library for Go (unofficial).

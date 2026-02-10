@@ -1,9 +1,9 @@
 package adserrors_test
 
-import(
+import (
 	"github.com/jarmocluyse/ads-go/pkg/ads/ads-errors"
-	"testing"
 	"github.com/stretchr/testify/assert"
+	"testing"
 )
 
 func TestErrorCodeToString(t *testing.T) {
@@ -41,4 +41,3 @@ func TestErrorCodeToString(t *testing.T) {
 		})
 	}
 }
-

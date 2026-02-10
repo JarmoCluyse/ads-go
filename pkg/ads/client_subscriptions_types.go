@@ -3,6 +3,7 @@ package ads
 import (
 	"time"
 
+	adssymbol "github.com/jarmocluyse/ads-go/pkg/ads/ads-symbol"
 	"github.com/jarmocluyse/ads-go/pkg/ads/types"
 )
 
@@ -51,7 +52,7 @@ type ActiveSubscription struct {
 	Port uint16
 
 	// Symbol contains symbol information (if subscribed by path via SubscribeValue).
-	Symbol *types.AdsSymbol
+	Symbol *adssymbol.AdsSymbol
 
 	// DataType contains full data type information (if subscribed by path via SubscribeValue).
 	DataType *types.AdsDataType

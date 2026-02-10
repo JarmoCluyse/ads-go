@@ -6,6 +6,7 @@ import (
 
 	adserrors "github.com/jarmocluyse/ads-go/pkg/ads/ads-errors"
 	amsheader "github.com/jarmocluyse/ads-go/pkg/ads/ams-header"
+	"github.com/jarmocluyse/ads-go/pkg/ads/types"
 )
 
 // receive handles incoming data from the ADS router.
@@ -53,7 +54,7 @@ func (c *Client) processReceiveBuffer() {
 		c.logger.Debug("receive: Parsed AMS packet", "invokeID", packet.InvokeId, "data", packet)
 
 		// Check if this is a notification packet (command 8)
-		if packet.AdsCommand == types.ADSCommandNotification {
+		if types.ADSCommand(packet.AdsCommand) == types.ADSCommandNotification {
 			c.logger.Debug("receive: Received notification packet, routing to handleNotification")
 			c.handleNotification(packet.Data)
 			continue // Don't look for request channel, notifications don't have invokeIDs

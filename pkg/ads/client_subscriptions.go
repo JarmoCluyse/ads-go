@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"time"
 
+	adssymbol "github.com/jarmocluyse/ads-go/pkg/ads/ads-symbol"
 	"github.com/jarmocluyse/ads-go/pkg/ads/types"
 )
 
@@ -67,7 +68,7 @@ func (c *Client) SubscribeRaw(port uint16, indexGroup, indexOffset, size uint32,
 }
 
 // addSubscription is the internal method that sends the AddNotification command.
-func (c *Client) addSubscription(port uint16, indexGroup, indexOffset, size uint32, callback SubscriptionCallback, settings SubscriptionSettings, symbol *types.AdsSymbol, dataType *types.AdsDataType, isRaw bool) (*ActiveSubscription, error) {
+func (c *Client) addSubscription(port uint16, indexGroup, indexOffset, size uint32, callback SubscriptionCallback, settings SubscriptionSettings, symbol *adssymbol.AdsSymbol, dataType *types.AdsDataType, isRaw bool) (*ActiveSubscription, error) {
 	c.logger.Debug("addSubscription: Creating subscription", "port", port, "indexGroup", indexGroup, "indexOffset", indexOffset)
 
 	// Apply defaults

@@ -49,6 +49,7 @@ jobs:
       if: matrix.os == 'ubuntu-latest' && matrix.go == '1.25.x'
       uses: codecov/codecov-action@v5
       with:
-        file: ./coverage.txt
+        token: ${{ secrets.CODECOV_TOKEN }}
+        files: ./coverage.txt
         flags: unittests
         name: codecov-umbrella

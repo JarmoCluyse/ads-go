@@ -9,6 +9,7 @@ import (
 	"github.com/jarmocluyse/ads-go/example/cli"
 	"github.com/jarmocluyse/ads-go/pkg/ads"
 	adsstateinfo "github.com/jarmocluyse/ads-go/pkg/ads/ads-stateinfo"
+	"github.com/jarmocluyse/ads-go/pkg/ads/types"
 	"github.com/lmittmann/tint"
 )
 
@@ -89,11 +90,25 @@ func main() {
 	}
 	settings.OnStateChange = func(client *ads.Client, newState, oldState *adsstateinfo.SystemState) {
 		if oldState == nil {
-			slog.Info("EVENT: Initial TwinCAT state read", "state", newState.AdsState.String())
+			// Initial state read
+			slog.Info("EVENT: Initial TwinCAT state read",
+				"state", newState.AdsState.String(),
+				"deviceState", newState.DeviceState)
 		} else {
-			slog.Info("EVENT: TwinCAT state changed",
-				"from", oldState.AdsState.String(),
-				"to", newState.AdsState.String())
+			// State changed
+			slog.Info("EVENT: TwinCAT system state changed",
+				"fromState", oldState.AdsState.String(),
+				"toState", newState.AdsState.String(),
+				"fromDeviceState", oldState.DeviceState,
+				"toDeviceState", newState.DeviceState)
+
+			// Log specific transition types
+			if newState.AdsState == types.ADSStateRun && oldState.AdsState != types.ADSStateRun {
+				slog.Info("TwinCAT entered RUN mode - operations now available")
+			} else if oldState.AdsState == types.ADSStateRun && newState.AdsState != types.ADSStateRun {
+				slog.Warn("TwinCAT left RUN mode - operations will be blocked",
+					"newState", newState.AdsState.String())
+			}
 		}
 	}
 

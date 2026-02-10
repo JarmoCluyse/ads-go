@@ -37,10 +37,9 @@ func GetConfig() ads.ClientSettings {
 	}
 
 	settings := ads.ClientSettings{
-		TargetNetID:       adsTargetNetID,
-		RouterAddr:        adsRouterAddr,
-		Timeout:           timeout,
-		AdsSymbolsUseUtf8: true,
+		TargetNetID: adsTargetNetID,
+		RouterAddr:  adsRouterAddr,
+		Timeout:     timeout,
 	}
 	return settings
 }

@@ -8,9 +8,6 @@ require (
 	github.com/lmittmann/tint v1.1.2
 )
 
-require (
-	golang.org/x/sys v0.0.0-20220310020820-b874c991c1a5 // indirect
-	golang.org/x/text v0.27.0 // indirect
-)
+require golang.org/x/sys v0.0.0-20220310020820-b874c991c1a5 // indirect
 
 replace github.com/jarmocluyse/ads-go v1.0.0 => ../

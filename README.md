@@ -1,54 +1,1303 @@
 # ads-go
 
-A Go client library for communicating with Beckhoff devices using the ADS protocol.
-
+[![Go Reference](https://pkg.go.dev/badge/github.com/jarmocluyse/ads-go.svg)](https://pkg.go.dev/github.com/jarmocluyse/ads-go)
+[![Go Report Card](https://goreportcard.com/badge/github.com/jarmocluyse/ads-go)](https://goreportcard.com/report/github.com/jarmocluyse/ads-go)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
----
+Beckhoff TwinCAT ADS client library for Go (unofficial).
 
-## Features
+Connect to a Beckhoff TwinCAT automation system using the ADS protocol from a Go application.
 
-- Connect to Beckhoff devices over ADS protocol
-- Read and write ADS
-- Read and write system state
+> **Note:** Documentation structure inspired by [jisotalo/ads-client](https://github.com/jisotalo/ads-client) (used with permission).
 
----
+# Project Status
 
-## Installation
+Active development. Core features are stable and tested.
+
+**Implemented:**
+- ✅ Connection management (connect, disconnect, port registration)
+- ✅ Read/write operations with automatic type conversion
+- ✅ Raw memory operations (ReadRaw, WriteRaw, ReadWriteRaw)
+- ✅ Symbol and data type introspection
+- ✅ PLC state control (config/run modes)
+- ✅ Device information reading
+- ✅ Full type support (primitives, structs, arrays, enums, strings)
+
+**Roadmap:**
+- ⏳ ADS notifications (subscriptions)
+- ⏳ Variable handle management
+- ⏳ RPC method invocation
+- ⏳ Batch operations (sum commands)
+
+# Features
+
+- Supports TwinCAT 2 and 3
+- Supports connecting to local TwinCAT 3 runtime
+- Supports any ADS-enabled target system (local runtime, remote PLC, I/O devices)
+- Multiple connections from same host
+- Reading and writing any variable type
+- Automatic conversion between PLC and Go types
+- Symbol and data type introspection
+- PLC state control (start, stop, config mode)
+- Device information reading
+- Raw memory operations for advanced use cases
+- Automatic 32/64-bit variable support (XINT, ULINT, etc.)
+- Automatic byte alignment support (all pack-modes)
+- Structured logging support (log/slog)
+
+# Table of Contents
+
+- [Support](#support)
+- [Installing](#installing)
+- [Minimal Example (TLDR)](#minimal-example-tldr)
+- [Connection Setup](#connection-setup)
+  - [Setup 1 - Connect from Windows](#setup-1---connect-from-windows)
+  - [Setup 2 - Connect from Linux/Windows with .NET Router](#setup-2---connect-from-linuxwindows-with-net-router)
+  - [Setup 3 - Connect from any system (direct)](#setup-3---connect-from-any-system-direct)
+  - [Setup 4 - Connect from local system](#setup-4---connect-from-local-system)
+  - [Setup 5 - Docker container](#setup-5---docker-container)
+- [Important](#important)
+  - [Enabling localhost support on TwinCAT 3](#enabling-localhost-support-on-twincat-3)
+  - [Structured variables](#structured-variables)
+  - [Differences when using with TwinCAT 2](#differences-when-using-with-twincat-2)
+- [Getting Started](#getting-started)
+  - [Documentation](#documentation)
+  - [Available Methods](#available-methods)
+  - [Creating a Client](#creating-a-client)
+  - [Connecting](#connecting)
+  - [Reading Values](#reading-values)
+  - [Writing Values](#writing-values)
+  - [Raw Operations](#raw-operations)
+  - [Symbol and Type Information](#symbol-and-type-information)
+  - [PLC Control](#plc-control)
+  - [Device Information](#device-information)
+  - [Logging](#logging)
+  - [Disconnecting](#disconnecting)
+- [Common Issues and Questions](#common-issues-and-questions)
+- [Architecture](#architecture)
+- [Roadmap](#roadmap)
+- [Testing](#testing)
+- [Examples](#examples)
+- [License](#license)
+
+# Support
+
+- **Issues & bugs:** [GitHub Issues](https://github.com/jarmocluyse/ads-go/issues)
+- **Discussions & help:** [GitHub Discussions](https://github.com/jarmocluyse/ads-go/discussions)
+
+# Installing
 
 ```bash
 go get github.com/jarmocluyse/ads-go@latest
 ```
 
----
+Import in your code:
 
-## Usage
+```go
+import "github.com/jarmocluyse/ads-go/pkg/ads"
+```
 
-Usage examples and sample code can be found in [`cmd/main.go`](./cmd/main.go).
+# Minimal Example (TLDR)
 
----
+This connects to a local PLC runtime, reads a value, writes a value, reads it again and then disconnects. The value is a string located at `GVL_Global.StringValue`.
+
+```go
+package main
+
+import (
+	"fmt"
+	"log"
+
+	"github.com/jarmocluyse/ads-go/pkg/ads"
+)
+
+func main() {
+	// Create client
+	client := ads.NewClient(ads.ClientSettings{
+		TargetAmsNetId: "localhost",
+		TargetAdsPort:  851,
+	}, nil)
+
+	// Connect
+	if err := client.Connect(); err != nil {
+		log.Fatal(err)
+	}
+	defer client.Disconnect()
+
+	fmt.Println("Connected to PLC")
+
+	// Read a value
+	value, err := client.ReadValue(851, "GVL_Global.StringValue")
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Printf("Value read (before): %v\n", value)
+
+	// Write a value
+	err = client.WriteValue(851, "GVL_Global.StringValue", "New value from Go!")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// Read again to verify
+	value, err = client.ReadValue(851, "GVL_Global.StringValue")
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Printf("Value read (after): %v\n", value)
+
+	fmt.Println("Done!")
+}
+```
+
+# Connection Setup
+
+The ads-go client can be used with multiple system configurations.
+
+![Connection Setup Diagram](./img/connection_setup.png)
+
+## Setup 1 - Connect from Windows
+
+This is the most common scenario. The client is running on a Windows PC that has TwinCAT Router installed (such as development laptop, Beckhoff IPC/PC, Beckhoff PLC).
+
+**Requirements:**
+- Client has one of the following installed:
+  - TwinCAT XAE (development environment)
+  - TwinCAT XAR (runtime)
+  - [TwinCAT ADS](https://www.beckhoff.com/en-en/products/automation/twincat/tc1xxx-twincat-3-base/tc1000.html)
+- An ADS route is created between the client and the PLC using TwinCAT router
+
+**Client settings:**
+
+```go
+client := ads.NewClient(ads.ClientSettings{
+	TargetAmsNetId: "192.168.1.120.1.1", // AmsNetId of the target PLC
+	TargetAdsPort:  851,
+}, nil)
+```
+
+## Setup 2 - Connect from Linux/Windows with .NET Router
+
+In this scenario, the client is running on Linux or Windows without TwinCAT Router. The .NET based router can be run separately on the same machine.
+
+**Requirements:**
+- Client has .NET runtime installed
+- Client has [AdsRouterConsoleApp](https://github.com/Beckhoff/TF6000_ADS_DOTNET_V5_Samples/tree/main/Sources/RouterSamples/AdsRouterConsoleApp) or similar running
+- An ADS route is created between the client and the PLC (see AdsRouterConsoleApp docs)
+
+**Client settings:**
+
+```go
+client := ads.NewClient(ads.ClientSettings{
+	TargetAmsNetId: "192.168.1.120.1.1", // AmsNetId of the target PLC
+	TargetAdsPort:  851,
+}, nil)
+```
+
+## Setup 3 - Connect from any system (direct)
+
+In this scenario, the client is running on a machine that has no router running (no TwinCAT router and no 3rd party router). For example, Raspberry Pi without any additional installations.
+
+In this setup, the client directly connects to the PLC and uses its TwinCAT router for communication. Only one simultaneous connection from the client is possible.
+
+**Requirements:**
+- Target system (PLC) firewall has TCP port 48898 open
+  - Windows Firewall might block, make sure Ethernet connection is handled as "private"
+- Local AmsNetId and ADS port are set manually
+  - Used `LocalAmsNetId` is not already in use
+  - Used `LocalAdsPort` is not already in use
+- An ADS route is configured to the PLC (see below)
+
+**Setting up the route:**
+
+1. At the PLC, open `C:\TwinCAT\3.1\Target\StaticRoutes.xml`
+2. Copy paste the following under `<RemoteConnections>`:
+
+```xml
+<Route>
+  <Name>GoClient</Name>
+  <Address>192.168.1.10</Address>
+  <NetId>192.168.1.10.1.1</NetId>
+  <Type>TCP_IP</Type>
+  <Flags>64</Flags>
+</Route>
+```
+
+3. Edit `Address` to IP address of the client (which runs the Go app), such as `192.168.1.10`
+4. Edit `NetId` to any unused AmsNetId address, such as `192.168.1.10.1.1`
+5. Restart the PLC
+
+**Client settings:**
+
+```go
+client := ads.NewClient(ads.ClientSettings{
+	LocalAmsNetId:  "192.168.1.10.1.1",  // Same as NetId in StaticRoutes.xml
+	LocalAdsPort:   32750,                // Can be anything that is not used
+	TargetAmsNetId: "192.168.1.120.1.1", // AmsNetId of the target PLC
+	TargetAdsPort:  851,
+	RouterAddress:  "192.168.1.120",     // PLC IP address
+	RouterTcpPort:  48898,
+}, nil)
+```
+
+## Setup 4 - Connect from local system
+
+In this scenario, the PLC is running the Go app locally. For example, the development PC or Beckhoff PLC with a screen for HMI.
+
+**Requirements:**
+- AMS router TCP loopback enabled (see [Enabling localhost support](#enabling-localhost-support-on-twincat-3))
+  - Should be already enabled in TwinCAT versions >= 4024.5
+
+**Client settings:**
+
+```go
+client := ads.NewClient(ads.ClientSettings{
+	TargetAmsNetId: "127.0.0.1.1.1", // or "localhost"
+	TargetAdsPort:  851,
+}, nil)
+```
+
+## Setup 5 - Docker container
+
+It's also possible to run the client in Docker containers, also with a separate router (Linux systems).
+
+Contact me if you need help with Docker setup.
+
+# Important
+
+## Enabling localhost support on TwinCAT 3
+
+If connecting to the local TwinCAT runtime (Go app and PLC on the same machine), the ADS router TCP loopback feature has to be enabled.
+
+TwinCAT 4024.5 and newer already have this enabled as default.
+
+1. Open registry editor (`regedit`)
+2. Navigate to:
+
+```
+32-bit operating system:
+  HKEY_LOCAL_MACHINE\SOFTWARE\Beckhoff\TwinCAT3\System\
+
+64-bit operating system:
+  HKEY_LOCAL_MACHINE\SOFTWARE\WOW6432Node\Beckhoff\TwinCAT3\System\
+```
+
+3. Create new DWORD registry entry named `EnableAmsTcpLoopback` with value of `1`
+4. Restart the system
+
+![Registry Setting](https://user-images.githubusercontent.com/13457157/82748398-2640bf00-9daa-11ea-98e5-0032b3537969.png)
+
+Now you can connect to localhost using `TargetAmsNetId` address of `127.0.0.1.1.1` or `localhost`.
+
+## Structured variables
+
+When writing structured variables, the object properties are handled case-insensitively. This is because TwinCAT is case-insensitive.
+
+In practice, it means that the following objects are equal when passed to `WriteValue()`:
+
+```go
+// These are equivalent in TwinCAT
+map[string]any{
+	"sometext": "hello",
+	"somereal": 3.14,
+}
+
+map[string]any{
+	"SOmeTEXT": "hello",
+	"SOMEreal": 3.14,
+}
+```
+
+If there are multiple properties with the same name (case-insensitive), the behavior is undefined.
+
+## Differences when using with TwinCAT 2
+
+**ADS port for the first PLC runtime is 801 instead of 851:**
+
+```go
+client := ads.NewClient(ads.ClientSettings{
+	TargetAmsNetId: "192.168.1.120.1.1",
+	TargetAdsPort:  801, // TwinCAT 2
+}, nil)
+```
+
+**All variable and data type names are in UPPERCASE:**
+
+This might cause problems if your app is used with both TC2 & TC3 systems.
+
+![TwinCAT 2 Variables](https://user-images.githubusercontent.com/13457157/86540055-96df0d80-bf0a-11ea-8f94-7e04515213c2.png)
+
+**Global variables are accessed with dot (`.`) prefix (without the GVL name):**
+
+```go
+// TwinCAT 3
+client.ReadValue(851, "GVL_Test.ExampleSTRUCT")
+
+// TwinCAT 2
+client.ReadValue(801, ".EXAMPLESTRUCT")
+```
+
+**ENUMs are always numeric values only** (no name strings).
+
+**Empty structs and function blocks (without members) can't be read.**
+
+# Getting Started
+
+## Documentation
+
+Full API documentation is available at [https://pkg.go.dev/github.com/jarmocluyse/ads-go/pkg/ads](https://pkg.go.dev/github.com/jarmocluyse/ads-go/pkg/ads)
+
+Complete working examples can be found in `cmd/main.go` and `example/` directory.
+
+## Available Methods
+
+| Method | Description |
+|--------|-------------|
+| `Connect()` | Establishes connection to target system |
+| `Disconnect()` | Closes connection and cleans up resources |
+| `ReadValue(port, path)` | Reads variable value by path with auto type conversion |
+| `WriteValue(port, path, value)` | Writes variable value by path with auto type conversion |
+| `ReadRaw(port, indexGroup, indexOffset, size)` | Reads raw bytes from memory |
+| `WriteRaw(port, indexGroup, indexOffset, data)` | Writes raw bytes to memory |
+| `ReadWriteRaw(port, indexGroup, indexOffset, readLength, writeData)` | Combined read-write operation |
+| `GetSymbol(port, path)` | Retrieves symbol metadata (IndexGroup, IndexOffset, Size, Type) |
+| `GetDataType(name, port)` | Retrieves complete data type definition |
+| `BuildDataType(name, port)` | Recursively builds complex data type structures |
+| `ReadDeviceInfo()` | Reads device name and version information |
+| `ReadTcSystemState()` | Reads current TwinCAT system state |
+| `SetTcSystemToConfig()` | Sets TwinCAT system to CONFIG mode |
+| `SetTcSystemToRun()` | Sets TwinCAT system to RUN mode |
+| `WriteControl(adsState, deviceState, targetPort)` | Low-level state control |
+
+## Creating a Client
+
+Settings are passed via the `ClientSettings` struct. The following settings are mandatory:
+- `TargetAmsNetId` - Target runtime AmsNetId
+- `TargetAdsPort` - Target runtime ADS port
+
+```go
+client := ads.NewClient(ads.ClientSettings{
+	TargetAmsNetId: "localhost",
+	TargetAdsPort:  851,
+}, nil)
+```
+
+**With custom logger:**
+
+```go
+import "log/slog"
+
+logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
+	Level: slog.LevelDebug,
+}))
+
+client := ads.NewClient(ads.ClientSettings{
+	TargetAmsNetId: "localhost",
+	TargetAdsPort:  851,
+}, logger)
+```
+
+## Connecting
+
+It's good practice to start a connection at startup and keep it open until the app is closed.
+
+```go
+package main
+
+import (
+	"fmt"
+	"log"
+
+	"github.com/jarmocluyse/ads-go/pkg/ads"
+)
+
+func main() {
+	client := ads.NewClient(ads.ClientSettings{
+		TargetAmsNetId: "localhost",
+		TargetAdsPort:  851,
+	}, nil)
+
+	if err := client.Connect(); err != nil {
+		log.Fatal(err)
+	}
+	defer client.Disconnect()
+
+	fmt.Println("Connected to PLC")
+
+	// Your code here...
+}
+```
+
+## Reading Values
+
+### Reading Primitives
+
+Use `ReadValue()` to read any PLC value. The method automatically resolves the symbol and converts the value to an appropriate Go type.
+
+**Reading INT:**
+
+```go
+value, err := client.ReadValue(851, "GVL_Read.StandardTypes.INT_")
+if err != nil {
+	log.Fatal(err)
+}
+
+// Type assertion to get specific type
+intValue := value.(int16)
+fmt.Printf("INT value: %d\n", intValue)
+// Output: 32767
+```
+
+**Reading BOOL:**
+
+```go
+value, err := client.ReadValue(851, "GVL_Read.StandardTypes.BOOL_")
+if err != nil {
+	log.Fatal(err)
+}
+
+boolValue := value.(bool)
+fmt.Printf("BOOL value: %v\n", boolValue)
+// Output: true
+```
+
+**Reading REAL:**
+
+```go
+value, err := client.ReadValue(851, "GVL_Read.StandardTypes.REAL_")
+if err != nil {
+	log.Fatal(err)
+}
+
+realValue := value.(float32)
+fmt.Printf("REAL value: %.2f\n", realValue)
+// Output: 3.14
+```
+
+**Reading STRING:**
+
+```go
+value, err := client.ReadValue(851, "GVL_Read.StandardTypes.STRING_")
+if err != nil {
+	log.Fatal(err)
+}
+
+stringValue := value.(string)
+fmt.Printf("STRING value: %s\n", stringValue)
+// Output: Hello from PLC
+```
+
+### Reading Structs
+
+Structs are returned as `map[string]any`:
+
+```go
+value, err := client.ReadValue(851, "GVL_Read.ComplexTypes.STRUCT_")
+if err != nil {
+	log.Fatal(err)
+}
+
+// Type assertion to map
+structMap := value.(map[string]any)
+
+// Access fields
+boolField := structMap["BOOL_"].(bool)
+intField := structMap["INT_"].(int16)
+realField := structMap["REAL_"].(float32)
+
+fmt.Printf("Struct fields: BOOL=%v, INT=%d, REAL=%.2f\n",
+	boolField, intField, realField)
+
+// Or print entire struct
+fmt.Printf("Entire struct: %+v\n", structMap)
+/* Output:
+map[BOOL_:true BOOL_2:false BYTE_:255 WORD_:65535 ...]
+*/
+```
+
+### Reading Arrays
+
+Arrays are returned as `[]any`:
+
+```go
+value, err := client.ReadValue(851, "GVL_Read.StandardArrays.INT_5")
+if err != nil {
+	log.Fatal(err)
+}
+
+// Type assertion to slice
+arrayValue := value.([]any)
+
+fmt.Printf("Array length: %d\n", len(arrayValue))
+
+// Access individual elements
+for i, item := range arrayValue {
+	intItem := item.(int16)
+	fmt.Printf("Array[%d] = %d\n", i, intItem)
+}
+/* Output:
+Array[0] = 10
+Array[1] = 20
+Array[2] = 30
+Array[3] = 40
+Array[4] = 50
+*/
+```
+
+**Multidimensional arrays:**
+
+```go
+value, err := client.ReadValue(851, "GVL_Read.ComplexArrays.INT_2x3")
+if err != nil {
+	log.Fatal(err)
+}
+
+// Outer array
+outerArray := value.([]any)
+
+for i, row := range outerArray {
+	// Inner array
+	innerArray := row.([]any)
+	fmt.Printf("Row %d: ", i)
+	for _, item := range innerArray {
+		fmt.Printf("%d ", item.(int16))
+	}
+	fmt.Println()
+}
+/* Output:
+Row 0: 1 2 3
+Row 1: 4 5 6
+*/
+```
+
+### Reading Enums
+
+Enums are returned as `map[string]any` with "name" and "value" fields:
+
+```go
+value, err := client.ReadValue(851, "GVL_Read.ComplexTypes.ENUM_")
+if err != nil {
+	log.Fatal(err)
+}
+
+enumMap := value.(map[string]any)
+enumName := enumMap["name"].(string)
+enumValue := enumMap["value"].(int32)
+
+fmt.Printf("Enum: %s = %d\n", enumName, enumValue)
+// Output: Running = 100
+```
+
+### Safe Type Assertions
+
+Always use the comma-ok idiom for safe type assertions:
+
+```go
+value, err := client.ReadValue(851, "GVL.SomeValue")
+if err != nil {
+	log.Fatal(err)
+}
+
+// Safe type assertion
+if intValue, ok := value.(int32); ok {
+	fmt.Printf("Integer value: %d\n", intValue)
+} else {
+	fmt.Printf("Unexpected type: %T\n", value)
+}
+```
+
+## Writing Values
+
+### Writing Primitives
+
+Use `WriteValue()` to write any PLC value.
+
+**Writing INT:**
+
+```go
+err := client.WriteValue(851, "GVL_Write.StandardTypes.INT_", 42)
+if err != nil {
+	log.Fatal(err)
+}
+```
+
+**Writing BOOL:**
+
+```go
+err := client.WriteValue(851, "GVL_Write.StandardTypes.BOOL_", true)
+if err != nil {
+	log.Fatal(err)
+}
+```
+
+**Writing REAL:**
+
+```go
+err := client.WriteValue(851, "GVL_Write.StandardTypes.REAL_", 3.14)
+if err != nil {
+	log.Fatal(err)
+}
+```
+
+**Writing STRING:**
+
+```go
+err := client.WriteValue(851, "GVL_Write.StandardTypes.STRING_", "Hello from Go!")
+if err != nil {
+	log.Fatal(err)
+}
+```
+
+### Writing Structs
+
+Write structs using `map[string]any`:
+
+```go
+structData := map[string]any{
+	"BOOL_":  true,
+	"INT_":   int16(100),
+	"REAL_":  float32(2.71),
+	"STRING": "Test",
+}
+
+err := client.WriteValue(851, "GVL_Write.ComplexTypes.STRUCT_", structData)
+if err != nil {
+	log.Fatal(err)
+}
+```
+
+**Note:** Currently, partial struct updates require reading the existing value first, modifying it, then writing back:
+
+```go
+// Read existing value
+value, err := client.ReadValue(851, "GVL_Write.ComplexTypes.STRUCT_")
+if err != nil {
+	log.Fatal(err)
+}
+
+// Modify specific field
+structMap := value.(map[string]any)
+structMap["INT_"] = int16(200)
+
+// Write back
+err = client.WriteValue(851, "GVL_Write.ComplexTypes.STRUCT_", structMap)
+if err != nil {
+	log.Fatal(err)
+}
+```
+
+### Writing Arrays
+
+Write arrays using slices:
+
+```go
+// Using []int
+intArray := []int{1, 2, 3, 4, 5}
+err := client.WriteValue(851, "GVL_Write.StandardArrays.INT_5", intArray)
+if err != nil {
+	log.Fatal(err)
+}
+
+// Or using []any
+anyArray := []any{1, 2, 3, 4, 5}
+err = client.WriteValue(851, "GVL_Write.StandardArrays.INT_5", anyArray)
+if err != nil {
+	log.Fatal(err)
+}
+```
+
+**Multidimensional arrays:**
+
+```go
+// 2D array (2x3)
+array2D := []any{
+	[]any{1, 2, 3},
+	[]any{4, 5, 6},
+}
+
+err := client.WriteValue(851, "GVL_Write.ComplexArrays.INT_2x3", array2D)
+if err != nil {
+	log.Fatal(err)
+}
+```
+
+### Writing Enums
+
+Write enums by name (string) or value (integer):
+
+```go
+// By name
+err := client.WriteValue(851, "GVL_Write.ComplexTypes.ENUM_", "Running")
+if err != nil {
+	log.Fatal(err)
+}
+
+// By value
+err = client.WriteValue(851, "GVL_Write.ComplexTypes.ENUM_", 100)
+if err != nil {
+	log.Fatal(err)
+}
+```
+
+## Raw Operations
+
+For performance-critical code or when you need direct memory access, use raw operations.
+
+### ReadRaw
+
+Read raw bytes from PLC memory:
+
+```go
+// Read 4 bytes from IndexGroup 0x4020, IndexOffset 0x1000
+data, err := client.ReadRaw(851, 0x4020, 0x1000, 4)
+if err != nil {
+	log.Fatal(err)
+}
+
+fmt.Printf("Raw data: %x\n", data)
+// Output: Raw data: 01020304
+```
+
+**Getting IndexGroup and IndexOffset from symbol:**
+
+```go
+// Get symbol info first
+symbol, err := client.GetSymbol(851, "GVL.MyVariable")
+if err != nil {
+	log.Fatal(err)
+}
+
+// Use symbol info for raw read
+data, err := client.ReadRaw(851, symbol.IndexGroup, symbol.IndexOffset, symbol.Size)
+if err != nil {
+	log.Fatal(err)
+}
+
+fmt.Printf("Read %d bytes: %x\n", len(data), data)
+```
+
+### WriteRaw
+
+Write raw bytes to PLC memory:
+
+```go
+rawData := []byte{0x01, 0x02, 0x03, 0x04}
+
+err := client.WriteRaw(851, 0x4020, 0x1000, rawData)
+if err != nil {
+	log.Fatal(err)
+}
+
+fmt.Println("Raw data written successfully")
+```
+
+### ReadWriteRaw
+
+Combined read-write operation (useful for commands that require both):
+
+```go
+writeData := []byte{0x05, 0x06}
+
+// Write 2 bytes and read 4 bytes in one operation
+readData, err := client.ReadWriteRaw(851, 0x4020, 0x1000, 4, writeData)
+if err != nil {
+	log.Fatal(err)
+}
+
+fmt.Printf("Read data after write: %x\n", readData)
+```
+
+## Symbol and Type Information
+
+Get metadata about PLC variables and data types.
+
+### GetSymbol
+
+Retrieve symbol information (IndexGroup, IndexOffset, Size, Type):
+
+```go
+symbol, err := client.GetSymbol(851, "GVL.MyVariable")
+if err != nil {
+	log.Fatal(err)
+}
+
+fmt.Printf("Symbol: %s\n", symbol.Name)
+fmt.Printf("  Type: %s\n", symbol.Type)
+fmt.Printf("  Size: %d bytes\n", symbol.Size)
+fmt.Printf("  IndexGroup: 0x%x\n", symbol.IndexGroup)
+fmt.Printf("  IndexOffset: 0x%x\n", symbol.IndexOffset)
+fmt.Printf("  Comment: %s\n", symbol.Comment)
+
+/* Output:
+Symbol: GVL.MyVariable
+  Type: INT
+  Size: 2 bytes
+  IndexGroup: 0x4020
+  IndexOffset: 0x1000
+  Comment: Counter variable
+*/
+```
+
+### GetDataType
+
+Retrieve complete data type definition:
+
+```go
+dataType, err := client.GetDataType("ST_MyStruct", 851)
+if err != nil {
+	log.Fatal(err)
+}
+
+fmt.Printf("Type: %s\n", dataType.Name)
+fmt.Printf("Size: %d bytes\n", dataType.Size)
+fmt.Printf("Offset: %d\n", dataType.Offset)
+
+// Access struct fields (SubItems)
+fmt.Println("Fields:")
+for _, subItem := range dataType.SubItems {
+	fmt.Printf("  %s: %s (offset %d, size %d)\n",
+		subItem.Name,
+		subItem.Type,
+		subItem.Offset,
+		subItem.Size)
+}
+
+/* Output:
+Type: ST_MyStruct
+Size: 16 bytes
+Offset: 0
+Fields:
+  Field1: INT (offset 0, size 2)
+  Field2: BOOL (offset 2, size 1)
+  Field3: REAL (offset 4, size 4)
+  Field4: STRING(10) (offset 8, size 11)
+*/
+```
+
+**For arrays:**
+
+```go
+dataType, err := client.GetDataType("ARRAY[0..4] OF INT", 851)
+if err != nil {
+	log.Fatal(err)
+}
+
+fmt.Printf("Array info: %d dimensions\n", len(dataType.ArrayInfo))
+for i, arrInfo := range dataType.ArrayInfo {
+	fmt.Printf("  Dimension %d: Length=%d, LowerBound=%d, UpperBound=%d\n",
+		i, arrInfo.Length, arrInfo.LowerBound, arrInfo.UpperBound)
+}
+
+/* Output:
+Array info: 1 dimensions
+  Dimension 0: Length=5, LowerBound=0, UpperBound=4
+*/
+```
+
+## PLC Control
+
+Control the PLC runtime state.
+
+### SetTcSystemToConfig
+
+Set TwinCAT system to CONFIG mode (restart in config):
+
+```go
+err := client.SetTcSystemToConfig()
+if err != nil {
+	log.Fatal(err)
+}
+
+fmt.Println("TwinCAT system set to CONFIG mode")
+```
+
+### SetTcSystemToRun
+
+Set TwinCAT system to RUN mode (restart and run):
+
+```go
+err := client.SetTcSystemToRun()
+if err != nil {
+	log.Fatal(err)
+}
+
+fmt.Println("TwinCAT system set to RUN mode")
+```
+
+### ReadTcSystemState
+
+Read current TwinCAT system state:
+
+```go
+state, err := client.ReadTcSystemState()
+if err != nil {
+	log.Fatal(err)
+}
+
+fmt.Printf("ADS State: %d\n", state.AdsState)
+fmt.Printf("Device State: %d\n", state.DeviceState)
+
+// Common ADS states:
+// 0 = Invalid
+// 5 = Run
+// 6 = Stop
+
+/* Output:
+ADS State: 5
+Device State: 0
+*/
+```
+
+### WriteControl (Low-level)
+
+For advanced use cases, you can use the low-level `WriteControl` method:
+
+```go
+// Set to RUN state (AdsState=5, DeviceState=0)
+err := client.WriteControl(5, 0, 851)
+if err != nil {
+	log.Fatal(err)
+}
+
+// Set to STOP state (AdsState=6, DeviceState=0)
+err = client.WriteControl(6, 0, 851)
+if err != nil {
+	log.Fatal(err)
+}
+```
+
+## Device Information
+
+Read information about the target device:
+
+```go
+info, err := client.ReadDeviceInfo()
+if err != nil {
+	log.Fatal(err)
+}
+
+fmt.Printf("Device Name: %s\n", info.DeviceName)
+fmt.Printf("Version: %d.%d (Build %d)\n",
+	info.MajorVersion,
+	info.MinorVersion,
+	info.BuildVersion)
+
+/* Output:
+Device Name: PLC-1
+Version: 3.1 (Build 4024)
+*/
+```
 
 ## Logging
 
-By default, the client uses a **silent logger** (no logs).  
-To enable logging, pass your own `*slog.Logger` to `NewClient`.
+The client uses structured logging via Go's standard `log/slog` package. By default, logging is disabled.
 
-Example:
+### Enable Logging
+
+**Text output to console:**
 
 ```go
-logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
+import "log/slog"
+
+logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
+	Level: slog.LevelDebug,
+}))
+
 client := ads.NewClient(settings, logger)
 ```
 
----
+**JSON output:**
 
-## Contributing
+```go
+logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
+	Level: slog.LevelInfo,
+}))
 
-Contributions, issues, and feature requests are welcome!  
-Feel free to check [issues page](https://github.com/jarmocluyse/beckhoffads/issues).
+client := ads.NewClient(settings, logger)
+```
 
----
+**Custom log levels:**
 
-## License
+```go
+logLevel := &slog.LevelVar{}
+logLevel.Set(slog.LevelWarn) // Only warnings and errors
+
+handler := slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
+	Level: logLevel,
+})
+
+logger := slog.New(handler)
+client := ads.NewClient(settings, logger)
+```
+
+### Disable Logging (default)
+
+```go
+client := ads.NewClient(settings, nil) // No logging
+```
+
+## Disconnecting
+
+Always disconnect when done to clean up resources:
+
+```go
+if err := client.Disconnect(); err != nil {
+	log.Printf("Error during disconnect: %v", err)
+}
+```
+
+**Using defer (recommended):**
+
+```go
+func main() {
+	client := ads.NewClient(settings, nil)
+
+	if err := client.Connect(); err != nil {
+		log.Fatal(err)
+	}
+	defer client.Disconnect()
+
+	// Your code here...
+	// Disconnect will be called automatically on exit
+}
+```
+
+# Common Issues and Questions
+
+## Connection timeouts or failures
+
+**Symptoms:**
+- Connection fails immediately
+- Timeout errors after 2 minutes
+- "Connection refused" errors
+
+**Solutions:**
+1. Verify the target PLC is reachable (ping the IP address)
+2. Check that TwinCAT is running on the target
+3. Verify firewall allows TCP port 48898 (ADS router port)
+4. On Windows, ensure Ethernet connection is set to "Private" network
+5. For direct connections (Setup 3), verify StaticRoutes.xml is configured correctly
+6. Check that the AmsNetId and ADS port are correct
+
+## Symbol not found errors
+
+**Symptoms:**
+- Error message: "symbol not found" or similar
+- ReadValue/WriteValue fails
+
+**Solutions:**
+1. Verify the variable name and path are correct (case-sensitive in TC3, UPPERCASE in TC2)
+2. Check that the PLC runtime is in RUN mode (some symbols unavailable in CONFIG)
+3. Verify the variable is not optimized away by the compiler
+4. For TwinCAT 2, ensure you're using the correct syntax (dot prefix for globals)
+5. Try using ReadRaw with GetSymbol to get more details
+
+## Connecting to localhost not working
+
+**Symptoms:**
+- Cannot connect when using `TargetAmsNetId: "localhost"` or `"127.0.0.1.1.1"`
+- Connection refused on local machine
+
+**Solutions:**
+1. Enable TCP loopback in registry (see [Enabling localhost support](#enabling-localhost-support-on-twincat-3))
+2. TwinCAT versions < 4024.5 require manual registry edit
+3. Restart Windows after changing registry
+4. Verify TwinCAT is running locally
+
+## Config mode connections
+
+**Symptoms:**
+- Cannot read/write values when PLC is in CONFIG mode
+- "Target port not found" errors
+
+**Solutions:**
+1. This is expected behavior - most PLC runtime features require RUN mode
+2. Use `SetTcSystemToRun()` to start the PLC
+3. For system-level operations, you can still read device info and state
+
+## TwinCAT 2 variable names
+
+**Symptoms:**
+- Symbol not found when using TwinCAT 2
+- Variables not accessible
+
+**Solutions:**
+1. All variable names must be UPPERCASE in TwinCAT 2
+2. Global variables need dot prefix: `.VARIABLENAME`
+3. Use port 801 instead of 851
+4. See [Differences when using with TwinCAT 2](#differences-when-using-with-twincat-2)
+
+## Connection from Raspberry Pi or Linux
+
+**Symptoms:**
+- Cannot connect from Linux system
+- No router available
+
+**Solutions:**
+1. Use Setup 3 (direct connection) - see [Setup 3](#setup-3---connect-from-any-system-direct)
+2. Configure StaticRoutes.xml on the target PLC
+3. Ensure your LocalAmsNetId is unique and not used by other devices
+4. No TwinCAT installation needed on the Linux system
+
+## Port already in use
+
+**Symptoms:**
+- Error about port being in use
+- Cannot start second client
+
+**Solutions:**
+1. Use a different `LocalAdsPort` for each client instance
+2. Ensure previous client disconnected properly
+3. Wait a few seconds for the OS to release the port
+
+# Architecture
+
+The ads-go library uses a modular architecture for maintainability and testing.
+
+## Modular Design
+
+The package is organized into submodules, each handling a specific aspect of the ADS protocol:
+
+| Module | Purpose | Test Coverage |
+|--------|---------|---------------|
+| **ads-errors** | Parse and validate 4-byte ADS error codes | 100% |
+| **ads-header** | Parse 8-byte ADS response headers | 100% |
+| **ads-symbol** | Parse ADS symbol information | 100% |
+| **ads-datatype** | Parse complex data type definitions | 100% |
+| **ads-stateinfo** | Parse system state and device info | 100% |
+| **ads-primitives** | Read/write primitive types | 84.8% |
+| **ads-requests** | Build ADS command payloads | 100% |
+| **ads-serializer** | Type serialization and deserialization | 57.9% |
+| **ams-header** | Parse AMS protocol packet headers | 100% |
+| **ams-builder** | Build AMS/TCP and AMS headers | 100% |
+
+## Design Patterns
+
+**Invoke ID Management:**
+- Each request gets a unique invoke ID
+- Responses are matched to requests via invoke ID
+- Ensures correct handling of concurrent operations
+
+**Goroutine Receive Loop:**
+- Dedicated goroutine for receiving AMS packets
+- Channel-based communication with request handlers
+- Automatic buffer management and packet reassembly
+
+**Modular Parsing:**
+- Each protocol layer has dedicated parser
+- Easy to test and maintain
+- Clear separation of concerns
+
+# Roadmap
+
+The following features are planned for future releases:
+
+## ADS Notifications (Subscriptions)
+
+Event-driven value monitoring:
+- Subscribe to variable value changes
+- Automatic notification handling
+- Multiple simultaneous subscriptions
+- Configurable cycle times and change thresholds
+
+**Status:** ADS commands defined, client methods not yet implemented
+
+## Variable Handle Management
+
+Improve performance for repeated reads/writes:
+- Create/delete variable handles
+- Read/write using handles (faster than by path)
+- Automatic handle caching
+- Handle lifecycle management
+
+**Status:** Index groups defined, not actively used
+
+## RPC Method Invocation
+
+Call PLC function block methods:
+- Invoke FB methods with parameters
+- Support for input/output parameters
+- Return value handling
+- Method metadata parsing
+
+**Status:** Method metadata is parsed, invocation not implemented
+
+## Batch Operations (Sum Commands)
+
+Improve performance for multiple operations:
+- Read multiple values in one packet
+- Write multiple values in one packet
+- Reduced network overhead
+- Single round-trip for many operations
+
+**Status:** Index groups defined, not implemented
+
+## Contributions
+
+Contributions, issues, and feature requests are welcome!
+
+- Report bugs: [GitHub Issues](https://github.com/jarmocluyse/ads-go/issues)
+- Suggest features: [GitHub Discussions](https://github.com/jarmocluyse/ads-go/discussions)
+- Submit pull requests: Fork and submit PR
+
+# Testing
+
+## Running Tests
+
+Run all tests:
+```bash
+go test ./pkg/ads/... -v
+```
+
+Run tests with coverage:
+```bash
+go test ./pkg/ads/... -cover
+```
+
+Generate coverage report:
+```bash
+go test ./pkg/ads/... -coverprofile=coverage.out
+go tool cover -html=coverage.out
+```
+
+Run specific test:
+```bash
+go test ./pkg/ads/ads-serializer/... -v -run TestSerialize
+```
+
+## Test Structure
+
+The project uses table-driven tests with clear test cases:
+- Unit tests for each module
+- Integration tests for client operations
+- Guard clause style (early returns)
+- `github.com/stretchr/testify/assert` for assertions
+
+# Examples
+
+Complete working examples can be found in:
+
+- **cmd/main.go** - Command-line interface with interactive commands
+- **example/** - Additional usage examples (coming soon)
+
+To run the CLI example:
+```bash
+cd cmd
+go run main.go
+```
+
+# License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+---
+
+# Credits
+
+- **Author:** Jarmo Cluyse (jarmo_cluyse@hotmail.com)
+- **GitHub:** https://github.com/jarmocluyse/ads-go
+- **Documentation inspired by:** [jisotalo/ads-client](https://github.com/jisotalo/ads-client) by Jussi Isotalo (used with permission)
+
+---
+
+**Made with ❤️ for the Beckhoff automation community**

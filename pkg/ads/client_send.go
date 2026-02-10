@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"time"
 
+	amsbuilder "github.com/jarmocluyse/ads-go/pkg/ads/ams-builder"
 	"github.com/jarmocluyse/ads-go/pkg/ads/types"
 )
 
@@ -28,13 +29,13 @@ func (c *Client) send(req AdsCommandRequest) ([]byte, error) {
 	target := AmsAddress{NetID: c.settings.TargetNetID, Port: req.TargetPort}
 	c.logger.Debug("send: Target AMS Address", "netID", target.NetID, "port", target.Port)
 
-	amsHeader, err := createAmsHeader(target, c.localAmsAddr, req.Command, uint32(len(req.Data)), invokeID)
+	amsHeader, err := amsbuilder.BuildAmsHeader(target, c.localAmsAddr, req.Command, uint32(len(req.Data)), invokeID)
 	if err != nil {
 		c.logger.Error("send: Failed to create AMS header", "error", err)
 		return nil, err
 	}
 	dataLen := uint32(len(amsHeader) + len(req.Data))
-	amsTcpHeader := createAmsTcpHeader(types.AMSTCPPortAMSCommand, dataLen)
+	amsTcpHeader := amsbuilder.BuildAmsTcpHeader(types.AMSTCPPortAMSCommand, dataLen)
 
 	packet := append(amsTcpHeader, amsHeader...)
 	packet = append(packet, req.Data...)

@@ -45,6 +45,21 @@ func (c *Client) Connect() error {
 		return fmt.Errorf("connection hook failed: %w", err)
 	}
 
+	// Read initial state and start state monitoring
+	if initialState, err := c.ReadTcSystemState(); err != nil {
+		c.logger.Warn("Connect: Failed to read initial TwinCAT state", "error", err)
+	} else {
+		c.stateMutex.Lock()
+		c.currentState = initialState
+		c.stateMutex.Unlock()
+		c.logger.Info("Connect: Initial TwinCAT state", "state", initialState.AdsState.String())
+	}
+
+	// Start state poller if enabled
+	if c.settings.StatePollingInterval > 0 {
+		c.startStatePoller()
+	}
+
 	return nil
 }
 
@@ -52,6 +67,14 @@ func (c *Client) Connect() error {
 func (c *Client) Disconnect() error {
 	c.logger.Debug("Disconnect: Attempting to disconnect.")
 	if c.conn != nil {
+		// Stop state monitoring
+		c.stopStatePoller()
+
+		// Clear cached state
+		c.stateMutex.Lock()
+		c.currentState = nil
+		c.stateMutex.Unlock()
+
 		// Unsubscribe from all active subscriptions before disconnecting
 		if err := c.UnsubscribeAll(); err != nil {
 			c.logger.Warn("Disconnect: Error unsubscribing from all subscriptions", "error", err)

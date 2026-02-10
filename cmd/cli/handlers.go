@@ -18,6 +18,7 @@ func getHandlers() map[string]CommandHandler {
 		"device_info": handleDeviceInfo,
 		"state":       handleState,
 		"state_loop":  handleStateLoop,
+		"monitor":     handleMonitor,
 		"toConfig":    handleToConfig,
 		"toRun":       handleToRun,
 

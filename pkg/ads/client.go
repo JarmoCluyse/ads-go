@@ -8,6 +8,8 @@ import (
 	"net"
 	"sync"
 	"time"
+
+	"github.com/jarmocluyse/ads-go/pkg/ads/ads-stateinfo"
 )
 
 // Response represents a response from an ADS device.
@@ -28,6 +30,11 @@ type Client struct {
 	logger             *slog.Logger                   // logger
 	subscriptions      map[uint32]*ActiveSubscription // active subscriptions map[notificationHandle]subscription
 	subscriptionsMutex sync.RWMutex                   // mutex for subscriptions map
+	currentState       *adsstateinfo.SystemState      // current cached TwinCAT system state
+	stateMutex         sync.RWMutex                   // protects currentState
+	statePollerTimer   *time.Timer                    // state polling timer
+	statePollerID      int                            // unique poller ID to prevent multiple timers
+	statePollerMutex   sync.Mutex                     // protects timer operations
 }
 
 // ClientSettings holds the settings for the ADS client.
@@ -55,6 +62,17 @@ type ClientSettings struct {
 	// The hook receives the client and the error that caused the disconnection.
 	// Use this hook for error handling, reconnection logic, or alerting.
 	OnConnectionLost func(client *Client, err error)
+
+	// OnStateChange is called when TwinCAT system state changes (asynchronous).
+	// The hook receives the client, new state, and previous state (may be nil on first read).
+	// Use this hook to react to state transitions (Run→Config, Config→Run, etc.)
+	OnStateChange func(client *Client, newState *adsstateinfo.SystemState, oldState *adsstateinfo.SystemState)
+
+	// StatePollingInterval determines how often to check system state (default: 2s).
+	// Set to 0 to disable automatic state monitoring.
+	// The state poller runs in the background and detects when TwinCAT changes state
+	// (e.g., Run→Config, Config→Run). When state leaves Run mode, OnConnectionLost is triggered.
+	StatePollingInterval time.Duration
 }
 
 // LoadDefaults sets the default values for any unset ClientSettings fields.
@@ -70,6 +88,9 @@ func (cs *ClientSettings) LoadDefaults() {
 	}
 	if cs.Timeout == 0 {
 		cs.Timeout = 2 * time.Second
+	}
+	if cs.StatePollingInterval == 0 {
+		cs.StatePollingInterval = 2 * time.Second
 	}
 }
 

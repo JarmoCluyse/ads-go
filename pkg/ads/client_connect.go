@@ -36,7 +36,14 @@ func (c *Client) Connect() error {
 		c.logger.Warn("Connect: PLC setup not complete", "error", err)
 	}
 
-	c.logger.Info("Connect: Successfully connected to ADS router")
+	c.logger.Info("Connect: Successfully connected to ADS router", "localAMS", c.localAmsAddr.NetID, "port", c.localAmsAddr.Port)
+
+	// Invoke OnConnect hook (synchronous)
+	if err := c.invokeConnectHook(c.localAmsAddr); err != nil {
+		c.logger.Error("Connect: OnConnect hook failed, disconnecting", "error", err)
+		_ = c.Disconnect() // Clean up connection
+		return fmt.Errorf("connection hook failed: %w", err)
+	}
 
 	return nil
 }
@@ -49,6 +56,12 @@ func (c *Client) Disconnect() error {
 		if err := c.UnsubscribeAll(); err != nil {
 			c.logger.Warn("Disconnect: Error unsubscribing from all subscriptions", "error", err)
 		}
+		c.logger.Info("Disconnect: Unsubscribed from all active subscriptions.")
+
+		// Invoke OnDisconnect hook asynchronously (fire-and-forget)
+		go c.invokeHook("OnDisconnect", func() {
+			c.settings.OnDisconnect(c)
+		})
 
 		err := c.unregisterAdsPort()
 		if err != nil {

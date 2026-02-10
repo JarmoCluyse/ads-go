@@ -28,6 +28,13 @@ func (c *Client) receive() {
 			} else {
 				c.logger.Error("receive: Error reading from connection", "error", err)
 			}
+
+			// Invoke OnConnectionLost hook asynchronously (fire-and-forget)
+			connectionErr := err
+			go c.invokeHook("OnConnectionLost", func() {
+				c.settings.OnConnectionLost(c, connectionErr)
+			})
+
 			return // Exit goroutine on error or EOF
 		}
 

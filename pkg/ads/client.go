@@ -2,6 +2,7 @@ package ads
 
 import (
 	"bytes"
+	"fmt"
 	"io"
 	"log/slog"
 	"net"
@@ -35,6 +36,25 @@ type ClientSettings struct {
 	RouterAddr  string        // adres of the router (127.0.0.1 asumed if empty)
 	RouterPort  int           // port of the router (48898 asumed if empty)
 	Timeout     time.Duration // message timeout (2s assumed if empty)
+
+	// Connection lifecycle hooks (optional)
+	// OnConnect is called after successful connection establishment (synchronous).
+	// The hook receives the client and assigned local AMS address.
+	// If the hook returns an error, the connection will be closed and Connect() will fail.
+	// Use this hook to initialize state or start subscriptions.
+	// WARNING: This hook is called synchronously and should not block for extended periods.
+	//          If you need to perform expensive operations, spawn a goroutine.
+	OnConnect func(client *Client, addr AmsAddress) error
+
+	// OnDisconnect is called after graceful disconnect (asynchronous).
+	// The hook receives the client instance.
+	// Use this hook for cleanup or logging.
+	OnDisconnect func(client *Client)
+
+	// OnConnectionLost is called when connection drops unexpectedly (asynchronous).
+	// The hook receives the client and the error that caused the disconnection.
+	// Use this hook for error handling, reconnection logic, or alerting.
+	OnConnectionLost func(client *Client, err error)
 }
 
 // LoadDefaults sets the default values for any unset ClientSettings fields.
@@ -69,4 +89,36 @@ func NewClient(settings ClientSettings, logger *slog.Logger) *Client {
 	}
 	logger.Info("NewClient: ADS client initialized.")
 	return client
+}
+
+// invokeHook safely calls an asynchronous hook function with panic recovery.
+func (c *Client) invokeHook(hookName string, fn func()) {
+	if fn == nil {
+		return
+	}
+
+	defer func() {
+		if r := recover(); r != nil {
+			c.logger.Error("Hook panicked", "hook", hookName, "panic", r)
+		}
+	}()
+
+	fn()
+}
+
+// invokeConnectHook safely calls the OnConnect hook with panic recovery.
+// Returns an error if the hook fails or panics.
+func (c *Client) invokeConnectHook(addr AmsAddress) (hookErr error) {
+	if c.settings.OnConnect == nil {
+		return nil
+	}
+
+	defer func() {
+		if r := recover(); r != nil {
+			c.logger.Error("OnConnect hook panicked", "panic", r)
+			hookErr = fmt.Errorf("OnConnect panicked: %v", r)
+		}
+	}()
+
+	return c.settings.OnConnect(c, addr)
 }

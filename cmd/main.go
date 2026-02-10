@@ -22,8 +22,21 @@ func main() {
 
 	settings := cli.GetConfig()
 	slog.Info("main: Creating new ADS client with settings", "settings", settings)
-	logger := slog.Default()
-	client := ads.NewClient(settings, logger)
+
+	// Configure connection event hooks
+	settings.OnConnect = func(client *ads.Client, addr ads.AmsAddress) error {
+		slog.Info("EVENT: ADS client connected", "localAMS", addr.NetID, "port", addr.Port)
+		return nil
+	}
+	settings.OnDisconnect = func(client *ads.Client) {
+		slog.Info("EVENT: ADS client disconnected gracefully")
+	}
+	settings.OnConnectionLost = func(client *ads.Client, err error) {
+		slog.Error("EVENT: ADS connection lost unexpectedly", "error", err)
+	}
+
+	// Create client with nil logger (silent internal logs)
+	client := ads.NewClient(settings, nil)
 	slog.Debug("main: ADS client created.")
 
 	slog.Info("main: Attempting to connect to ADS router...")

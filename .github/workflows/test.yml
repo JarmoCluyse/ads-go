@@ -37,8 +37,13 @@ jobs:
     - name: Download dependencies
       run: go mod download
     
-    - name: Run tests
+    - name: Run tests (with coverage)
+      if: matrix.os == 'ubuntu-latest' && matrix.go == '1.25.x'
       run: go test -v -race -coverprofile=coverage.txt -covermode=atomic ./...
+    
+    - name: Run tests (without coverage)
+      if: matrix.os != 'ubuntu-latest' || matrix.go != '1.25.x'
+      run: go test -v -race ./...
     
     - name: Upload coverage to Codecov
       if: matrix.os == 'ubuntu-latest' && matrix.go == '1.25.x'

@@ -14,9 +14,9 @@ import (
 //	Bytes 8-11: Read Length (uint32, little-endian)
 func BuildReadRequest(indexGroup, indexOffset, readLength uint32) []byte {
 	buf := new(bytes.Buffer)
-	binary.Write(buf, binary.LittleEndian, indexGroup)
-	binary.Write(buf, binary.LittleEndian, indexOffset)
-	binary.Write(buf, binary.LittleEndian, readLength)
+	_ = binary.Write(buf, binary.LittleEndian, indexGroup)
+	_ = binary.Write(buf, binary.LittleEndian, indexOffset)
+	_ = binary.Write(buf, binary.LittleEndian, readLength)
 	return buf.Bytes()
 }
 
@@ -30,9 +30,9 @@ func BuildReadRequest(indexGroup, indexOffset, readLength uint32) []byte {
 //	Bytes 12+:   Data to write
 func BuildWriteRequest(indexGroup, indexOffset uint32, data []byte) []byte {
 	buf := new(bytes.Buffer)
-	binary.Write(buf, binary.LittleEndian, indexGroup)
-	binary.Write(buf, binary.LittleEndian, indexOffset)
-	binary.Write(buf, binary.LittleEndian, uint32(len(data)))
+	_ = binary.Write(buf, binary.LittleEndian, indexGroup)
+	_ = binary.Write(buf, binary.LittleEndian, indexOffset)
+	_ = binary.Write(buf, binary.LittleEndian, uint32(len(data)))
 	buf.Write(data)
 	return buf.Bytes()
 }
@@ -51,10 +51,10 @@ func BuildWriteRequest(indexGroup, indexOffset uint32, data []byte) []byte {
 // Note: writeData should already include any null terminators if required.
 func BuildReadWriteRequest(indexGroup, indexOffset, readLength uint32, writeData []byte) []byte {
 	buf := new(bytes.Buffer)
-	binary.Write(buf, binary.LittleEndian, indexGroup)
-	binary.Write(buf, binary.LittleEndian, indexOffset)
-	binary.Write(buf, binary.LittleEndian, readLength)
-	binary.Write(buf, binary.LittleEndian, uint32(len(writeData)))
+	_ = binary.Write(buf, binary.LittleEndian, indexGroup)
+	_ = binary.Write(buf, binary.LittleEndian, indexOffset)
+	_ = binary.Write(buf, binary.LittleEndian, readLength)
+	_ = binary.Write(buf, binary.LittleEndian, uint32(len(writeData)))
 	buf.Write(writeData)
 	return buf.Bytes()
 }
@@ -75,12 +75,12 @@ func BuildReadWriteRequest(indexGroup, indexOffset, readLength uint32, writeData
 //	Last byte:     Null terminator (0x00)
 func BuildReadWriteRequestWithNullTerminator(indexGroup, indexOffset, readLength uint32, writeData []byte) []byte {
 	buf := new(bytes.Buffer)
-	binary.Write(buf, binary.LittleEndian, indexGroup)
-	binary.Write(buf, binary.LittleEndian, indexOffset)
-	binary.Write(buf, binary.LittleEndian, readLength)
-	binary.Write(buf, binary.LittleEndian, uint32(len(writeData)+1)) // +1 for null terminator
+	_ = binary.Write(buf, binary.LittleEndian, indexGroup)
+	_ = binary.Write(buf, binary.LittleEndian, indexOffset)
+	_ = binary.Write(buf, binary.LittleEndian, readLength)
+	_ = binary.Write(buf, binary.LittleEndian, uint32(len(writeData)+1)) // +1 for null terminator
 	buf.Write(writeData)
-	binary.Write(buf, binary.LittleEndian, uint8(0)) // Null terminator
+	_ = binary.Write(buf, binary.LittleEndian, uint8(0)) // Null terminator
 	return buf.Bytes()
 }
 

@@ -32,7 +32,7 @@ func (c *Client) SetTcSystemToConfig() error {
 func (c *Client) SetTcSystemToRun() error {
 	c.logger.Info("SetTcSystemToRun: Setting TwinCAT system to run mode")
 	if c.conn == nil {
-		return fmt.Errorf("SetTcSystemToRun: Client is not connected. Use Connect() to connect to the target first.")
+		return fmt.Errorf("SetTcSystemToRun: Client is not connected. Use Connect() to connect to the target first")
 	}
 
 	// Reading device state first as we don't want to change it (even though it's most probably 0)

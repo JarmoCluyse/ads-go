@@ -18,8 +18,7 @@ func TrimPlcString(str string) string {
 
 // Decodes provided []byte to PLC STRING
 func DecodePlcStringBuffer(data []byte) string {
-	var decoded string
-	decoded = string(data)
+	decoded := string(data)
 	// this will be needed for older versions of twincat
 	// decoded, _ = charmap.Windows1252.NewDecoder().String(string(data))
 	return TrimPlcString(decoded)

@@ -22,9 +22,8 @@ func main() {
 
 	settings := cli.GetConfig()
 	slog.Info("main: Creating new ADS client with settings", "settings", settings)
-	// logger := slog.Default()
-	// client := ads.NewClient(settings, logger)
-	client := ads.NewClient(settings, nil)
+	logger := slog.Default()
+	client := ads.NewClient(settings, logger)
 	slog.Debug("main: ADS client created.")
 
 	slog.Info("main: Attempting to connect to ADS router...")

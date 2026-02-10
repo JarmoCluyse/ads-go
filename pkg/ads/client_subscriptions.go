@@ -108,7 +108,6 @@ func (c *Client) addSubscription(port uint16, indexGroup, indexOffset, size uint
 	// 20..23 Cycle time in 100ns units (milliseconds * 10000)
 	cycleTimeUnits := uint32(settings.CycleTime.Milliseconds() * 10000)
 	binary.LittleEndian.PutUint32(payload[pos:], cycleTimeUnits)
-	pos += 4
 
 	// 24..39 Reserved (zeros)
 	// Already zero-initialized

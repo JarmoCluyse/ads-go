@@ -51,7 +51,11 @@ func Commandline(client *ads.Client) {
 	if err != nil {
 		panic(fmt.Sprintf("failed to initialize readline: %v", err))
 	}
-	defer rl.Close()
+	defer func() {
+		if err := rl.Close(); err != nil {
+			fmt.Fprintf(os.Stderr, "Error closing readline: %v\n", err)
+		}
+	}()
 
 	// Start a goroutine to update the prompt based on state changes
 	go func() {

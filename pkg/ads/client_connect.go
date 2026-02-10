@@ -22,7 +22,9 @@ func (c *Client) Connect() error {
 	c.conn = conn
 
 	if err := c.registerAdsPort(); err != nil {
-		c.conn.Close()
+		if closeErr := c.conn.Close(); closeErr != nil {
+			c.logger.Error("Connect: Failed to close connection after port registration failure", "error", closeErr)
+		}
 		c.logger.Error("Connect: Failed to register ADS port", "error", err)
 		return err
 	}
@@ -94,7 +96,11 @@ func (c *Client) Disconnect() error {
 			c.logger.Error("Disconnect: Error unregistering ADS port", "error", err)
 		}
 
-		defer c.conn.Close()
+		defer func() {
+			if closeErr := c.conn.Close(); closeErr != nil {
+				c.logger.Error("Disconnect: Failed to close connection", "error", closeErr)
+			}
+		}()
 		c.logger.Info("Disconnect: Connection closed.")
 		return err
 	}

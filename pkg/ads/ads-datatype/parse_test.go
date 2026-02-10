@@ -1,3 +1,4 @@
+//nolint:errcheck // Test file with many in-memory buffer writes that cannot fail
 package adsdatatype
 
 import (

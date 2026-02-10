@@ -13,7 +13,9 @@ import (
 func (c *Client) receive() {
 	c.logger.Info("receive: Starting receive goroutine.")
 	defer func() {
-		c.conn.Close()
+		if err := c.conn.Close(); err != nil {
+			c.logger.Error("receive: Failed to close connection", "error", err)
+		}
 		c.logger.Info("receive: Receive goroutine terminated.")
 	}()
 
@@ -55,7 +57,10 @@ func (c *Client) processReceiveBuffer() {
 		}
 		// Extract the full packet
 		fullPacket := make([]byte, totalPacketLength)
-		c.receiveBuffer.Read(fullPacket)
+		if _, err := c.receiveBuffer.Read(fullPacket); err != nil {
+			c.logger.Error("receive: Failed to read from buffer", "error", err)
+			return
+		}
 
 		packet := c.parseAmsPacket(fullPacket)
 		c.logger.Debug("receive: Parsed AMS packet", "invokeID", packet.InvokeId, "data", packet)

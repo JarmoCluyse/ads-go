@@ -23,4 +23,3 @@ func AMSRouterStateToString(value AMSRouterState) string {
 		return "UNKNOWN"
 	}
 }
-

@@ -11,8 +11,9 @@ import (
 
 // Sentinel errors for parsing failures
 var (
-	ErrInvalidStateLength      = errors.New("invalid system state data length")
-	ErrInvalidDeviceInfoLength = errors.New("invalid device info data length")
+	ErrInvalidStateLength         = errors.New("invalid system state data length")
+	ErrInvalidExtendedStateLength = errors.New("invalid extended system state data length")
+	ErrInvalidDeviceInfoLength    = errors.New("invalid device info data length")
 )
 
 // ParseSystemState parses TwinCAT system state from binary data.
@@ -43,6 +44,56 @@ func ParseSystemState(data []byte) (SystemState, error) {
 func CheckSystemState(data []byte) error {
 	if len(data) < 4 {
 		return fmt.Errorf("%w: expected 4 bytes, got %d", ErrInvalidStateLength, len(data))
+	}
+	return nil
+}
+
+// ParseExtendedSystemState parses TwinCAT extended system state from binary data.
+//
+// Extended state includes the RestartIndex which increments when TwinCAT system service
+// restarts. This allows detection of system restarts even when AdsState remains "Run".
+//
+// Binary format (all fields in little-endian):
+//   - Bytes 0-1:   AdsState (uint16)
+//   - Bytes 2-3:   DeviceState (uint16)
+//   - Bytes 4-5:   RestartIndex (uint16) - increments on TwinCAT restart
+//   - Byte 6:      Version (uint8)
+//   - Byte 7:      Revision (uint8)
+//   - Bytes 8-9:   Build (uint16)
+//   - Byte 10:     Platform (uint8)
+//   - Byte 11:     OsType (uint8)
+//   - Bytes 12-13: Flags (uint16)
+//   - Bytes 14-15: Reserved
+//
+// Extended state is read from ADS port 10000, IndexGroup 240, IndexOffset 0, Size 16.
+//
+// Returns the parsed ExtendedSystemState and any error encountered.
+func ParseExtendedSystemState(data []byte) (ExtendedSystemState, error) {
+	if len(data) < 16 {
+		return ExtendedSystemState{}, fmt.Errorf("%w: expected 16 bytes, got %d", ErrInvalidExtendedStateLength, len(data))
+	}
+
+	return ExtendedSystemState{
+		AdsState:     types.ADSState(binary.LittleEndian.Uint16(data[0:2])),
+		DeviceState:  binary.LittleEndian.Uint16(data[2:4]),
+		RestartIndex: binary.LittleEndian.Uint16(data[4:6]),
+		Version:      data[6],
+		Revision:     data[7],
+		Build:        binary.LittleEndian.Uint16(data[8:10]),
+		Platform:     data[10],
+		OsType:       data[11],
+		Flags:        binary.LittleEndian.Uint16(data[12:14]),
+		// Bytes 14-15 are reserved
+	}, nil
+}
+
+// CheckExtendedSystemState validates extended system state data without parsing it.
+// This is useful for validation before passing data to ParseExtendedSystemState.
+//
+// Returns nil if the data appears valid, or an error describing the issue.
+func CheckExtendedSystemState(data []byte) error {
+	if len(data) < 16 {
+		return fmt.Errorf("%w: expected 16 bytes, got %d", ErrInvalidExtendedStateLength, len(data))
 	}
 	return nil
 }

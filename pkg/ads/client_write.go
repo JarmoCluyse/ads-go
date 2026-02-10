@@ -10,6 +10,11 @@ import (
 func (c *Client) WriteValue(port uint16, path string, value any) error {
 	c.logger.Debug("WriteValue: Writing value", "path", path)
 
+	// Check if system is in Run mode before writing
+	if err := c.checkStateForOperation("WriteValue"); err != nil {
+		return err
+	}
+
 	symbol, err := c.GetSymbol(port, path)
 	if err != nil {
 		return fmt.Errorf("WriteValue: failed to get symbol: %w", err)

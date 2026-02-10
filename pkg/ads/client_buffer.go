@@ -6,6 +6,7 @@ import (
 
 	adserrors "github.com/jarmocluyse/ads-go/pkg/ads/ads-errors"
 	amsheader "github.com/jarmocluyse/ads-go/pkg/ads/ams-header"
+	"github.com/jarmocluyse/ads-go/pkg/ads/types"
 )
 
 // receive handles incoming data from the ADS router.
@@ -27,6 +28,13 @@ func (c *Client) receive() {
 			} else {
 				c.logger.Error("receive: Error reading from connection", "error", err)
 			}
+
+			// Invoke OnConnectionLost hook asynchronously (fire-and-forget)
+			connectionErr := err
+			go c.invokeHook("OnConnectionLost", func() {
+				c.settings.OnConnectionLost(c, connectionErr)
+			})
+
 			return // Exit goroutine on error or EOF
 		}
 
@@ -51,6 +59,13 @@ func (c *Client) processReceiveBuffer() {
 
 		packet := c.parseAmsPacket(fullPacket)
 		c.logger.Debug("receive: Parsed AMS packet", "invokeID", packet.InvokeId, "data", packet)
+
+		// Check if this is a notification packet (command 8)
+		if types.ADSCommand(packet.AdsCommand) == types.ADSCommandNotification {
+			c.logger.Debug("receive: Received notification packet, routing to handleNotification")
+			c.handleNotification(packet.Data)
+			continue // Don't look for request channel, notifications don't have invokeIDs
+		}
 
 		c.mutex.Lock()
 		ch, ok := c.requests[packet.InvokeId]

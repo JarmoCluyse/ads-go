@@ -31,4 +31,3 @@ func ADSRcpMethodFlagsToStringArray(flags ADSRcpMethodFlags) []string {
 	}
 	return result
 }
-

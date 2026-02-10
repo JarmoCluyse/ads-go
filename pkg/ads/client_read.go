@@ -10,6 +10,11 @@ import (
 func (c *Client) ReadValue(port uint16, path string) (any, error) {
 	c.logger.Debug("ReadValue: Reading value", "path", path)
 
+	// Check if system is in Run mode before reading
+	if err := c.checkStateForOperation("ReadValue"); err != nil {
+		return nil, err
+	}
+
 	symbol, err := c.GetSymbol(port, path)
 	if err != nil {
 		return nil, fmt.Errorf("ReadValue: failed to get symbol: %w", err)

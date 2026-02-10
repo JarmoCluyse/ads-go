@@ -85,3 +85,29 @@ func handleToRun(args []string, client *ads.Client) {
 	}
 	fmt.Println("[OK] TwinCAT system set to Run state.")
 }
+
+// handleMonitor displays current TwinCAT state and information about background monitoring.
+// Usage: monitor
+func handleMonitor(args []string, client *ads.Client) {
+	currentState := client.GetCurrentState()
+	if currentState == nil {
+		fmt.Println("[INFO] TwinCAT state not available yet (still initializing)")
+		fmt.Println("[INFO] Background state monitoring is active (2s interval)")
+		fmt.Println("[INFO] State changes will be logged automatically")
+		return
+	}
+
+	fmt.Printf("[INFO] Current TwinCAT state: %s\n", currentState.AdsState.String())
+	fmt.Printf("[INFO] Device state: %d\n", currentState.DeviceState)
+	fmt.Println()
+	fmt.Println("[INFO] Prompt Indicators:")
+	fmt.Println("  🟢 > = TwinCAT in Run mode (operations available)")
+	fmt.Println("  🔵 > = TwinCAT in Config mode (operations blocked)")
+	fmt.Println("  🔴 > = TwinCAT stopped (operations blocked)")
+	fmt.Println("  ❌ > = TwinCAT in error state")
+	fmt.Println("  ⚪ > = State unknown or disconnected")
+	fmt.Println()
+	fmt.Println("[INFO] Background state monitoring is active (2s interval)")
+	fmt.Println("[INFO] State changes are logged automatically")
+	fmt.Println("[INFO] When state leaves Run mode, auto-reconnection is triggered")
+}

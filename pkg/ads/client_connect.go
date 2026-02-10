@@ -33,10 +33,35 @@ func (c *Client) Connect() error {
 
 	// TODO: check if this is needed
 	if err := c.setupPlcConnection(); err != nil {
-		c.logger.Warn("PLC setup nor complete", "error", err)
+		c.logger.Warn("Connect: PLC setup not complete", "error", err)
 	}
 
-	c.logger.Debug("Connect: PLC connection setup complete")
+	c.logger.Info("Connect: Successfully connected to ADS router", "localAMS", c.localAmsAddr.NetID, "port", c.localAmsAddr.Port)
+
+	// Invoke OnConnect hook (synchronous)
+	if err := c.invokeConnectHook(c.localAmsAddr); err != nil {
+		c.logger.Error("Connect: OnConnect hook failed, disconnecting", "error", err)
+		_ = c.Disconnect() // Clean up connection
+		return fmt.Errorf("connection hook failed: %w", err)
+	}
+
+	// Read initial state and start state monitoring
+	if initialState, err := c.ReadTcSystemState(); err != nil {
+		c.logger.Warn("Connect: Failed to read initial TwinCAT state", "error", err)
+	} else {
+		c.stateMutex.Lock()
+		c.currentState = initialState
+		c.stateMutex.Unlock()
+		c.logger.Info("Connect: Initial TwinCAT state", "state", initialState.AdsState.String())
+
+		// Trigger OnStateChange hook for initial state (with oldState=nil)
+		c.invokeStateChangeHook(initialState, nil)
+	}
+
+	// Start state poller if enabled
+	if c.settings.StatePollingInterval > 0 {
+		c.startStatePoller()
+	}
 
 	return nil
 }
@@ -45,6 +70,25 @@ func (c *Client) Connect() error {
 func (c *Client) Disconnect() error {
 	c.logger.Debug("Disconnect: Attempting to disconnect.")
 	if c.conn != nil {
+		// Stop state monitoring
+		c.stopStatePoller()
+
+		// Clear cached state
+		c.stateMutex.Lock()
+		c.currentState = nil
+		c.stateMutex.Unlock()
+
+		// Unsubscribe from all active subscriptions before disconnecting
+		if err := c.UnsubscribeAll(); err != nil {
+			c.logger.Warn("Disconnect: Error unsubscribing from all subscriptions", "error", err)
+		}
+		c.logger.Info("Disconnect: Unsubscribed from all active subscriptions.")
+
+		// Invoke OnDisconnect hook asynchronously (fire-and-forget)
+		go c.invokeHook("OnDisconnect", func() {
+			c.settings.OnDisconnect(c)
+		})
+
 		err := c.unregisterAdsPort()
 		if err != nil {
 			c.logger.Error("Disconnect: Error unregistering ADS port", "error", err)

@@ -18,6 +18,7 @@ func getHandlers() map[string]CommandHandler {
 		"device_info": handleDeviceInfo,
 		"state":       handleState,
 		"state_loop":  handleStateLoop,
+		"monitor":     handleMonitor,
 		"toConfig":    handleToConfig,
 		"toRun":       handleToRun,
 
@@ -36,6 +37,12 @@ func getHandlers() map[string]CommandHandler {
 		// Raw commands (cmd_raw.go)
 		"read_raw":  handleReadRaw,
 		"write_raw": handleWriteRaw,
+
+		// Subscription commands (cmd_subscriptions.go)
+		"subscribe":       handleSubscribe,
+		"list_subs":       handleListSubs,
+		"unsubscribe":     handleUnsubscribe,
+		"unsubscribe_all": handleUnsubscribeAll,
 
 		// Utility commands (cmd_util.go)
 		"help": handleHelp,

@@ -2,11 +2,14 @@ package ads
 
 import (
 	"bytes"
+	"fmt"
 	"io"
 	"log/slog"
 	"net"
 	"sync"
 	"time"
+
+	"github.com/jarmocluyse/ads-go/pkg/ads/ads-stateinfo"
 )
 
 // Response represents a response from an ADS device.
@@ -17,14 +20,24 @@ type Response struct {
 
 // Client represents an ADS client.
 type Client struct {
-	conn          net.Conn                 // tcp connection
-	settings      ClientSettings           // client settings
-	mutex         sync.Mutex               // mutex for invoke id and request map
-	invokeID      uint32                   // last used invoke id
-	requests      map[uint32]chan Response // channel map to write the responses to
-	localAmsAddr  AmsAddress               // local asigned ams adres
-	receiveBuffer bytes.Buffer             // Buffer for incoming data
-	logger        *slog.Logger             // logger
+	conn                   net.Conn                       // tcp connection
+	settings               ClientSettings                 // client settings
+	mutex                  sync.Mutex                     // mutex for invoke id and request map
+	invokeID               uint32                         // last used invoke id
+	requests               map[uint32]chan Response       // channel map to write the responses to
+	localAmsAddr           AmsAddress                     // local asigned ams adres
+	receiveBuffer          bytes.Buffer                   // Buffer for incoming data
+	logger                 *slog.Logger                   // logger
+	subscriptions          map[uint32]*ActiveSubscription // active subscriptions map[notificationHandle]subscription
+	subscriptionsMutex     sync.RWMutex                   // mutex for subscriptions map
+	currentState           *adsstateinfo.SystemState      // current cached TwinCAT system state
+	stateMutex             sync.RWMutex                   // protects currentState
+	statePollerTimer       *time.Timer                    // state polling timer
+	statePollerID          int                            // unique poller ID to prevent multiple timers
+	statePollerMutex       sync.Mutex                     // protects timer operations
+	extendedStateSupported *bool                          // nil = unknown, true/false = tested
+	lastRestartIndex       *uint16                        // last seen restart index (nil if not yet read or not supported)
+	extendedStateMutex     sync.RWMutex                   // protects extended state fields
 }
 
 // ClientSettings holds the settings for the ADS client.
@@ -33,6 +46,36 @@ type ClientSettings struct {
 	RouterAddr  string        // adres of the router (127.0.0.1 asumed if empty)
 	RouterPort  int           // port of the router (48898 asumed if empty)
 	Timeout     time.Duration // message timeout (2s assumed if empty)
+
+	// Connection lifecycle hooks (optional)
+	// OnConnect is called after successful connection establishment (synchronous).
+	// The hook receives the client and assigned local AMS address.
+	// If the hook returns an error, the connection will be closed and Connect() will fail.
+	// Use this hook to initialize state or start subscriptions.
+	// WARNING: This hook is called synchronously and should not block for extended periods.
+	//          If you need to perform expensive operations, spawn a goroutine.
+	OnConnect func(client *Client, addr AmsAddress) error
+
+	// OnDisconnect is called after graceful disconnect (asynchronous).
+	// The hook receives the client instance.
+	// Use this hook for cleanup or logging.
+	OnDisconnect func(client *Client)
+
+	// OnConnectionLost is called when connection drops unexpectedly (asynchronous).
+	// The hook receives the client and the error that caused the disconnection.
+	// Use this hook for error handling, reconnection logic, or alerting.
+	OnConnectionLost func(client *Client, err error)
+
+	// OnStateChange is called when TwinCAT system state changes (asynchronous).
+	// The hook receives the client, new state, and previous state (may be nil on first read).
+	// Use this hook to react to state transitions (Run→Config, Config→Run, etc.)
+	OnStateChange func(client *Client, newState *adsstateinfo.SystemState, oldState *adsstateinfo.SystemState)
+
+	// StatePollingInterval determines how often to check system state (default: 2s).
+	// Set to 0 to disable automatic state monitoring.
+	// The state poller runs in the background and detects when TwinCAT changes state
+	// (e.g., Run→Config, Config→Run). When state leaves Run mode, OnConnectionLost is triggered.
+	StatePollingInterval time.Duration
 }
 
 // LoadDefaults sets the default values for any unset ClientSettings fields.
@@ -49,6 +92,9 @@ func (cs *ClientSettings) LoadDefaults() {
 	if cs.Timeout == 0 {
 		cs.Timeout = 2 * time.Second
 	}
+	if cs.StatePollingInterval == 0 {
+		cs.StatePollingInterval = 2 * time.Second
+	}
 }
 
 // NewClient creates a new ADS client.
@@ -60,10 +106,43 @@ func NewClient(settings ClientSettings, logger *slog.Logger) *Client {
 	logger.Info("NewClient: Initializing new ADS client.")
 	settings.LoadDefaults()
 	client := &Client{
-		settings: settings,
-		requests: make(map[uint32]chan Response),
-		logger:   logger,
+		settings:      settings,
+		requests:      make(map[uint32]chan Response),
+		subscriptions: make(map[uint32]*ActiveSubscription),
+		logger:        logger,
 	}
 	logger.Info("NewClient: ADS client initialized.")
 	return client
+}
+
+// invokeHook safely calls an asynchronous hook function with panic recovery.
+func (c *Client) invokeHook(hookName string, fn func()) {
+	if fn == nil {
+		return
+	}
+
+	defer func() {
+		if r := recover(); r != nil {
+			c.logger.Error("Hook panicked", "hook", hookName, "panic", r)
+		}
+	}()
+
+	fn()
+}
+
+// invokeConnectHook safely calls the OnConnect hook with panic recovery.
+// Returns an error if the hook fails or panics.
+func (c *Client) invokeConnectHook(addr AmsAddress) (hookErr error) {
+	if c.settings.OnConnect == nil {
+		return nil
+	}
+
+	defer func() {
+		if r := recover(); r != nil {
+			c.logger.Error("OnConnect hook panicked", "panic", r)
+			hookErr = fmt.Errorf("OnConnect panicked: %v", r)
+		}
+	}()
+
+	return c.settings.OnConnect(c, addr)
 }

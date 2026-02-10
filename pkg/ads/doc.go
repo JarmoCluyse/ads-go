@@ -261,6 +261,60 @@ Control the PLC runtime state:
 	}
 	fmt.Printf("ADS State: %d, Device State: %d\n", state.AdsState, state.DeviceState)
 
+# State Monitoring & Event Handling
+
+The client can automatically monitor TwinCAT system state changes and detect restarts:
+
+	settings := ads.ClientSettings{
+		TargetAmsNetId: "localhost",
+		TargetAdsPort:  851,
+
+		// Called when state changes (Run ↔ Config ↔ Stop)
+		OnStateChange: func(client *ads.Client, newState, oldState *adsstateinfo.SystemState) {
+			if oldState == nil {
+				// Initial state after connection
+				fmt.Printf("Initial state: %s\n", newState.AdsState.String())
+			} else {
+				// State changed
+				fmt.Printf("State: %s → %s\n",
+					oldState.AdsState.String(),
+					newState.AdsState.String())
+			}
+		},
+
+		// Called when connection is lost or TwinCAT restarts
+		OnConnectionLost: func(client *ads.Client, err error) {
+			fmt.Printf("Connection lost: %v\n", err)
+			// Re-read values and re-subscribe to notifications here
+		},
+
+		// Check state every 2 seconds (default)
+		StatePollingInterval: 2 * time.Second,
+	}
+
+	client := ads.NewClient(settings, nil)
+
+TwinCAT restart detection works by monitoring the restart index from extended system state
+(TwinCAT 4022+). When TwinCAT restarts, even if the state stays "Run", the restart index
+changes and OnConnectionLost is triggered. The client auto-detects extended state support
+and gracefully falls back to basic state monitoring on older versions.
+
+Get the cached current state (updated by background monitoring):
+
+	currentState := client.GetCurrentState()
+	if currentState != nil && currentState.AdsState == types.ADSStateRun {
+		fmt.Println("PLC is running")
+	}
+
+Read extended system state (TwinCAT 4022+):
+
+	extState, err := client.ReadTcSystemExtendedState()
+	if err == nil {
+		fmt.Printf("Restart Index: %d\n", extState.RestartIndex)
+		fmt.Printf("Version: %d.%d.%d\n",
+			extState.Version, extState.Revision, extState.Build)
+	}
+
 # Device Information
 
 Read information about the target device:

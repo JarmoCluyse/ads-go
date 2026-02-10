@@ -22,9 +22,11 @@ Active development. Core features are stable and tested.
 - ✅ PLC state control (config/run modes)
 - ✅ Device information reading
 - ✅ Full type support (primitives, structs, arrays, enums, strings)
+- ✅ ADS notifications (subscriptions) with automatic change detection
+- ✅ State monitoring with restart detection
+- ✅ Connection lifecycle hooks (OnConnect, OnDisconnect, OnConnectionLost)
 
 **Roadmap:**
-- ⏳ ADS notifications (subscriptions)
 - ⏳ Variable handle management
 - ⏳ RPC method invocation
 - ⏳ Batch operations (sum commands)
@@ -43,6 +45,9 @@ Active development. Core features are stable and tested.
 - Raw memory operations for advanced use cases
 - Automatic 32/64-bit variable support (XINT, ULINT, etc.)
 - Automatic byte alignment support (all pack-modes)
+- ADS notifications/subscriptions with configurable cycle times
+- Automatic TwinCAT state monitoring and restart detection
+- Connection lifecycle hooks for robust error handling
 - Structured logging support (log/slog)
 
 # Table of Contents
@@ -70,6 +75,8 @@ Active development. Core features are stable and tested.
   - [Raw Operations](#raw-operations)
   - [Symbol and Type Information](#symbol-and-type-information)
   - [PLC Control](#plc-control)
+  - [State Monitoring & Event Handling](#state-monitoring--event-handling)
+  - [Subscriptions & Notifications](#subscriptions--notifications)
   - [Device Information](#device-information)
   - [Logging](#logging)
   - [Disconnecting](#disconnecting)
@@ -365,9 +372,14 @@ Complete working examples can be found in `cmd/main.go` and `example/` directory
 | `BuildDataType(name, port)` | Recursively builds complex data type structures |
 | `ReadDeviceInfo()` | Reads device name and version information |
 | `ReadTcSystemState()` | Reads current TwinCAT system state |
+| `ReadTcSystemExtendedState()` | Reads extended system state including restart index (TwinCAT 4022+) |
+| `GetCurrentState()` | Returns cached current system state (updated by state monitoring) |
 | `SetTcSystemToConfig()` | Sets TwinCAT system to CONFIG mode |
 | `SetTcSystemToRun()` | Sets TwinCAT system to RUN mode |
 | `WriteControl(adsState, deviceState, targetPort)` | Low-level state control |
+| `SubscribeValue(port, path, callback, settings)` | Subscribe to variable value changes with automatic notifications |
+| `Unsubscribe(subscription)` | Unsubscribe from a specific subscription |
+| `UnsubscribeAll()` | Unsubscribe from all active subscriptions |
 
 ## Creating a Client
 
@@ -966,6 +978,753 @@ if err != nil {
 }
 ```
 
+## State Monitoring & Event Handling
+
+The client can automatically monitor TwinCAT system state changes and detect restarts. This is useful for handling connection issues, state transitions, and TwinCAT system restarts.
+
+### Automatic State Monitoring
+
+By default, the client checks the system state every 2 seconds and triggers event handlers when changes are detected.
+
+**Key Features:**
+- Detects state changes (Run ↔ Config ↔ Stop)
+- Detects TwinCAT system restarts (even when state stays "Run")
+- Auto-detects extended state support (TwinCAT 4022+)
+- Thread-safe with automatic cleanup
+
+### OnStateChange Hook
+
+Called whenever the TwinCAT system state changes:
+
+```go
+settings := ads.ClientSettings{
+	TargetAmsNetId: "localhost",
+	TargetAdsPort:  851,
+	
+	// Called on state changes
+	OnStateChange: func(client *ads.Client, newState, oldState *adsstateinfo.SystemState) {
+		if oldState == nil {
+			// Initial state after connection
+			fmt.Printf("Initial state: %s\n", newState.AdsState.String())
+		} else {
+			// State changed
+			fmt.Printf("State changed: %s → %s\n", 
+				oldState.AdsState.String(), 
+				newState.AdsState.String())
+		}
+	},
+}
+
+client := ads.NewClient(settings, nil)
+```
+
+**Common State Transitions:**
+- `Run` → `Config`: PLC stopped for configuration
+- `Config` → `Run`: PLC started after configuration
+- `Run` → `Stop`: PLC stopped
+- `Stop` → `Run`: PLC started
+
+### OnConnectionLost Hook
+
+Called when the connection is lost unexpectedly or TwinCAT restarts:
+
+```go
+settings := ads.ClientSettings{
+	TargetAmsNetId: "localhost",
+	TargetAdsPort:  851,
+	
+	// Called when connection drops or TwinCAT restarts
+	OnConnectionLost: func(client *ads.Client, err error) {
+		fmt.Printf("Connection lost: %v\n", err)
+		
+		// Re-read values and re-subscribe to notifications here
+		// The ADS connection is still alive, but TwinCAT restarted
+	},
+}
+
+client := ads.NewClient(settings, nil)
+```
+
+**When This Is Triggered:**
+- TwinCAT state leaves "Run" mode (→ Config, Stop, Error, etc.)
+- TwinCAT system restarts (detected via restart index change)
+- Physical network connection drops
+
+### TwinCAT Restart Detection
+
+When TwinCAT restarts using `toRun` command, the ADS state may remain "Run" but subscriptions are cleared. The client detects this by monitoring the **restart index** from extended system state.
+
+**How It Works:**
+1. On first state check, auto-detects extended state support
+2. Monitors both `AdsState` AND `RestartIndex` on each poll
+3. When `RestartIndex` changes → triggers `OnConnectionLost`
+4. Works with TwinCAT 4022 and newer (gracefully falls back on older versions)
+
+**Example Log Output:**
+
+```
+TwinCAT system restarted (restart index: 44 → 48)
+EVENT: TwinCAT system state changed fromState=Run toState=Run
+EVENT: ADS connection lost unexpectedly
+```
+
+### Reading Extended System State
+
+For TwinCAT 4022 and newer, you can read extended system information including the restart index:
+
+```go
+extState, err := client.ReadTcSystemExtendedState()
+if err != nil {
+	// Extended state not supported or error
+	log.Printf("Extended state not available: %v", err)
+} else {
+	fmt.Printf("Restart Index: %d\n", extState.RestartIndex)
+	fmt.Printf("TwinCAT Version: %d.%d.%d\n", 
+		extState.Version, extState.Revision, extState.Build)
+	fmt.Printf("Platform: %d, OS Type: %d\n", 
+		extState.Platform, extState.OsType)
+}
+
+/* Output:
+Restart Index: 48
+TwinCAT Version: 3.1.4024
+Platform: 1, OS Type: 2
+*/
+```
+
+**Extended State Fields:**
+- `RestartIndex` (uint16): Increments on every TwinCAT restart
+- `Version`, `Revision`, `Build`: TwinCAT version information
+- `Platform`: Platform identifier (1=PC, 5=ARM, etc.)
+- `OsType`: Operating system type (2=Windows, 10=Linux, etc.)
+- `Flags`: System service state flags
+
+### Getting Current State
+
+Retrieve the cached current state (updated by background monitoring):
+
+```go
+currentState := client.GetCurrentState()
+if currentState == nil {
+	fmt.Println("State not available yet (still initializing)")
+} else {
+	fmt.Printf("Current state: %s\n", currentState.AdsState.String())
+	
+	// Check if PLC is running
+	if currentState.AdsState == types.ADSStateRun {
+		fmt.Println("PLC is running - operations available")
+	}
+}
+```
+
+### Customizing State Polling
+
+Change the polling interval (default is 2 seconds):
+
+```go
+settings := ads.ClientSettings{
+	TargetAmsNetId: "localhost",
+	TargetAdsPort:  851,
+	
+	// Check state every 5 seconds
+	StatePollingInterval: 5 * time.Second,
+}
+
+client := ads.NewClient(settings, nil)
+```
+
+**Disable state monitoring:**
+
+```go
+settings := ads.ClientSettings{
+	TargetAmsNetId: "localhost",
+	TargetAdsPort:  851,
+	
+	// Disable automatic state monitoring
+	StatePollingInterval: 0,
+}
+
+client := ads.NewClient(settings, nil)
+```
+
+### Complete Example
+
+Here's a complete example with state monitoring and reconnection logic:
+
+```go
+package main
+
+import (
+	"fmt"
+	"log"
+	"time"
+	
+	"github.com/jarmocluyse/ads-go/pkg/ads"
+	"github.com/jarmocluyse/ads-go/pkg/ads/ads-stateinfo"
+	"github.com/jarmocluyse/ads-go/pkg/ads/types"
+)
+
+func main() {
+	settings := ads.ClientSettings{
+		TargetAmsNetId: "localhost",
+		TargetAdsPort:  851,
+		
+		// Monitor state changes
+		OnStateChange: func(client *ads.Client, newState, oldState *adsstateinfo.SystemState) {
+			if oldState == nil {
+				fmt.Printf("Initial state: %s\n", newState.AdsState.String())
+				return
+			}
+			
+			fmt.Printf("State changed: %s → %s\n",
+				oldState.AdsState.String(),
+				newState.AdsState.String())
+			
+			// Detect Run mode entry
+			if newState.AdsState == types.ADSStateRun && 
+			   oldState.AdsState != types.ADSStateRun {
+				fmt.Println("TwinCAT entered RUN mode")
+				// Re-initialize your application logic here
+			}
+		},
+		
+		// Handle connection loss / restart
+		OnConnectionLost: func(client *ads.Client, err error) {
+			fmt.Printf("Connection lost: %v\n", err)
+			
+			// Wait for TwinCAT to come back to Run mode
+			fmt.Println("Waiting for TwinCAT to return to Run mode...")
+			
+			for {
+				time.Sleep(1 * time.Second)
+				state := client.GetCurrentState()
+				
+				if state != nil && state.AdsState == types.ADSStateRun {
+					fmt.Println("TwinCAT back in Run mode!")
+					
+					// Re-read values and re-subscribe here
+					// Example: resubscribeToNotifications(client)
+					break
+				}
+			}
+		},
+	}
+	
+	client := ads.NewClient(settings, nil)
+	
+	if err := client.Connect(); err != nil {
+		log.Fatal(err)
+	}
+	defer client.Disconnect()
+	
+	fmt.Println("Connected - monitoring state changes...")
+	
+	// Your application logic here
+	select {} // Keep running
+}
+```
+
+**Key Points:**
+- State monitoring runs automatically in the background
+- Hooks are called asynchronously (don't block)
+- ADS connection stays alive during TwinCAT restarts
+- User must re-read values and re-subscribe after restart
+- `GetCurrentState()` returns cached state (no network call)
+
+## Subscriptions & Notifications
+
+The client supports ADS notifications (subscriptions) for monitoring variable value changes in real-time. Instead of polling variables, you can subscribe to them and receive automatic notifications when values change.
+
+### Key Features
+
+- **Event-driven monitoring** - Get notified only when values change
+- **Configurable cycle times** - Control how often values are checked (default: 100ms)
+- **Change detection** - Option to send notifications only on value changes
+- **Multiple subscriptions** - Subscribe to many variables simultaneously
+- **Thread-safe** - Safe for concurrent access
+- **Automatic cleanup** - Subscriptions are cleared on disconnect
+
+### Basic Subscription
+
+Subscribe to a variable and receive notifications when it changes:
+
+```go
+package main
+
+import (
+	"fmt"
+	"log"
+	"time"
+	
+	"github.com/jarmocluyse/ads-go/pkg/ads"
+)
+
+func main() {
+	client := ads.NewClient(ads.ClientSettings{
+		TargetAmsNetId: "localhost",
+		TargetAdsPort:  851,
+	}, nil)
+	
+	if err := client.Connect(); err != nil {
+		log.Fatal(err)
+	}
+	defer client.Disconnect()
+	
+	// Define callback function
+	callback := func(data ads.SubscriptionData) {
+		fmt.Printf("Value changed: %v (at %s)\n", 
+			data.Value, 
+			data.Timestamp.Format("15:04:05.000"))
+	}
+	
+	// Subscribe to a variable
+	settings := ads.SubscriptionSettings{
+		CycleTime:    100 * time.Millisecond,
+		SendOnChange: true,
+	}
+	
+	sub, err := client.SubscribeValue(851, "GVL.Counter", callback, settings)
+	if err != nil {
+		log.Fatal(err)
+	}
+	
+	fmt.Println("Subscribed! Waiting for notifications...")
+	
+	// Keep running to receive notifications
+	time.Sleep(30 * time.Second)
+	
+	// Unsubscribe when done
+	if err := client.Unsubscribe(sub); err != nil {
+		log.Printf("Error unsubscribing: %v", err)
+	}
+}
+
+/* Output:
+Subscribed! Waiting for notifications...
+Value changed: 10 (at 14:23:15.123)
+Value changed: 11 (at 14:23:15.223)
+Value changed: 12 (at 14:23:15.323)
+...
+*/
+```
+
+### Subscription Settings
+
+Control how notifications are sent using `SubscriptionSettings`:
+
+```go
+settings := ads.SubscriptionSettings{
+	// How often to check the variable (required)
+	CycleTime: 100 * time.Millisecond,
+	
+	// Only send notifications when value changes (default: false)
+	// If false, notifications are sent every CycleTime
+	SendOnChange: true,
+}
+```
+
+**Recommended settings:**
+
+```go
+// Fast-changing values (motors, sensors)
+fastSettings := ads.SubscriptionSettings{
+	CycleTime:    50 * time.Millisecond,
+	SendOnChange: true,
+}
+
+// Slow-changing values (temperature, status)
+slowSettings := ads.SubscriptionSettings{
+	CycleTime:    1 * time.Second,
+	SendOnChange: true,
+}
+
+// Always notify (regardless of change)
+alwaysSettings := ads.SubscriptionSettings{
+	CycleTime:    100 * time.Millisecond,
+	SendOnChange: false, // Sends every 100ms
+}
+```
+
+### Subscription Data
+
+The callback receives `SubscriptionData` with the following fields:
+
+```go
+type SubscriptionData struct {
+	Value     any       // The variable value (with type conversion)
+	Timestamp time.Time // When the notification was received
+}
+```
+
+**Example callback with type assertion:**
+
+```go
+callback := func(data ads.SubscriptionData) {
+	// Type assert to expected type
+	if intValue, ok := data.Value.(int32); ok {
+		fmt.Printf("Counter: %d\n", intValue)
+	}
+	
+	// Or handle multiple types
+	switch v := data.Value.(type) {
+	case int32:
+		fmt.Printf("Integer: %d\n", v)
+	case bool:
+		fmt.Printf("Boolean: %v\n", v)
+	case float32:
+		fmt.Printf("Float: %.2f\n", v)
+	default:
+		fmt.Printf("Unknown type: %v\n", v)
+	}
+}
+```
+
+### Multiple Subscriptions
+
+Subscribe to multiple variables at once:
+
+```go
+// Track subscriptions
+var subscriptions []*ads.ActiveSubscription
+
+// Subscribe to multiple variables
+variables := []string{
+	"GVL.Counter",
+	"GVL.Temperature",
+	"GVL.IsRunning",
+	"GVL.ErrorCode",
+}
+
+for _, varName := range variables {
+	// Create callback for this variable
+	callback := func(name string) ads.SubscriptionCallback {
+		return func(data ads.SubscriptionData) {
+			fmt.Printf("[%s] = %v\n", name, data.Value)
+		}
+	}(varName)
+	
+	// Subscribe
+	settings := ads.SubscriptionSettings{
+		CycleTime:    100 * time.Millisecond,
+		SendOnChange: true,
+	}
+	
+	sub, err := client.SubscribeValue(851, varName, callback, settings)
+	if err != nil {
+		log.Printf("Failed to subscribe to %s: %v", varName, err)
+		continue
+	}
+	
+	subscriptions = append(subscriptions, sub)
+	fmt.Printf("Subscribed to %s\n", varName)
+}
+
+// Later: unsubscribe from all
+for _, sub := range subscriptions {
+	if err := client.Unsubscribe(sub); err != nil {
+		log.Printf("Error unsubscribing: %v", err)
+	}
+}
+```
+
+### Unsubscribing
+
+**Unsubscribe from a specific subscription:**
+
+```go
+sub, err := client.SubscribeValue(851, "GVL.Counter", callback, settings)
+if err != nil {
+	log.Fatal(err)
+}
+
+// ... later ...
+
+if err := client.Unsubscribe(sub); err != nil {
+	log.Printf("Error unsubscribing: %v", err)
+}
+```
+
+**Unsubscribe from all active subscriptions:**
+
+```go
+if err := client.UnsubscribeAll(); err != nil {
+	log.Printf("Error unsubscribing from all: %v", err)
+}
+```
+
+**Note:** All subscriptions are automatically cleared when:
+- `Disconnect()` is called
+- TwinCAT system restarts (use `OnConnectionLost` hook to re-subscribe)
+
+### Handling TwinCAT Restarts
+
+When TwinCAT restarts, all subscriptions are cleared. Use the `OnConnectionLost` hook to automatically re-subscribe:
+
+```go
+// Track active subscriptions for re-subscription
+var activeVars = []string{"GVL.Counter", "GVL.Temperature"}
+
+settings := ads.ClientSettings{
+	TargetAmsNetId: "localhost",
+	TargetAdsPort:  851,
+	
+	// Re-subscribe after TwinCAT restart
+	OnConnectionLost: func(client *ads.Client, err error) {
+		fmt.Printf("Connection lost: %v\n", err)
+		fmt.Println("Waiting for TwinCAT to return to Run mode...")
+		
+		// Wait for Run state
+		for {
+			time.Sleep(1 * time.Second)
+			state := client.GetCurrentState()
+			
+			if state != nil && state.AdsState == types.ADSStateRun {
+				fmt.Println("TwinCAT back in Run mode - re-subscribing...")
+				
+				// Re-subscribe to all variables
+				for _, varName := range activeVars {
+					callback := func(data ads.SubscriptionData) {
+						fmt.Printf("[%s] = %v\n", varName, data.Value)
+					}
+					
+					subSettings := ads.SubscriptionSettings{
+						CycleTime:    100 * time.Millisecond,
+						SendOnChange: true,
+					}
+					
+					if _, err := client.SubscribeValue(851, varName, callback, subSettings); err != nil {
+						log.Printf("Failed to re-subscribe to %s: %v", varName, err)
+					} else {
+						fmt.Printf("Re-subscribed to %s\n", varName)
+					}
+				}
+				
+				break
+			}
+		}
+	},
+}
+
+client := ads.NewClient(settings, nil)
+```
+
+### Complete Working Example
+
+Here's a complete example with subscriptions and proper lifecycle management:
+
+```go
+package main
+
+import (
+	"fmt"
+	"log"
+	"os"
+	"os/signal"
+	"syscall"
+	"time"
+	
+	"github.com/jarmocluyse/ads-go/pkg/ads"
+	"github.com/jarmocluyse/ads-go/pkg/ads/types"
+)
+
+func main() {
+	// Track subscriptions for cleanup
+	var subscriptions []*ads.ActiveSubscription
+	
+	settings := ads.ClientSettings{
+		TargetAmsNetId: "localhost",
+		TargetAdsPort:  851,
+		
+		// Handle TwinCAT restarts
+		OnConnectionLost: func(client *ads.Client, err error) {
+			fmt.Printf("Connection lost: %v\n", err)
+			
+			// Wait for Run state and re-subscribe
+			for {
+				time.Sleep(1 * time.Second)
+				state := client.GetCurrentState()
+				
+				if state != nil && state.AdsState == types.ADSStateRun {
+					fmt.Println("Re-subscribing...")
+					subscribeToVariables(client, &subscriptions)
+					break
+				}
+			}
+		},
+	}
+	
+	client := ads.NewClient(settings, nil)
+	
+	if err := client.Connect(); err != nil {
+		log.Fatal(err)
+	}
+	defer client.Disconnect()
+	
+	fmt.Println("Connected! Creating subscriptions...")
+	
+	// Initial subscriptions
+	subscribeToVariables(client, &subscriptions)
+	
+	fmt.Println("\nMonitoring variables. Press Ctrl+C to exit...")
+	
+	// Wait for interrupt signal
+	sigChan := make(chan os.Signal, 1)
+	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
+	<-sigChan
+	
+	fmt.Println("\nShutting down...")
+}
+
+func subscribeToVariables(client *ads.Client, subscriptions *[]*ads.ActiveSubscription) {
+	// Clear old subscriptions
+	*subscriptions = nil
+	
+	variables := map[string]ads.SubscriptionSettings{
+		"GVL.Counter": {
+			CycleTime:    100 * time.Millisecond,
+			SendOnChange: true,
+		},
+		"GVL.Temperature": {
+			CycleTime:    500 * time.Millisecond,
+			SendOnChange: true,
+		},
+		"GVL.IsRunning": {
+			CycleTime:    200 * time.Millisecond,
+			SendOnChange: true,
+		},
+	}
+	
+	for varName, settings := range variables {
+		// Create callback for this variable
+		callback := func(name string) ads.SubscriptionCallback {
+			return func(data ads.SubscriptionData) {
+				fmt.Printf("[%s] %s = %v\n",
+					data.Timestamp.Format("15:04:05.000"),
+					name,
+					data.Value)
+			}
+		}(varName)
+		
+		// Subscribe
+		sub, err := client.SubscribeValue(851, varName, callback, settings)
+		if err != nil {
+			log.Printf("Failed to subscribe to %s: %v", varName, err)
+			continue
+		}
+		
+		*subscriptions = append(*subscriptions, sub)
+		fmt.Printf("✓ Subscribed to %s\n", varName)
+	}
+}
+```
+
+### Subscription Lifecycle
+
+```
+1. Connect to PLC
+   ↓
+2. Subscribe to variables
+   ↓
+3. Receive notifications automatically
+   ↓
+4. [TwinCAT restarts] → OnConnectionLost triggered
+   ↓
+5. Wait for Run state
+   ↓
+6. Re-subscribe to variables
+   ↓
+7. Continue receiving notifications
+   ↓
+8. Disconnect (automatic cleanup)
+```
+
+### Performance Considerations
+
+**Cycle Time:**
+- Shorter cycle times = more frequent checks = higher CPU usage
+- Recommended minimum: 50ms
+- Default: 100ms
+- For slow-changing values: 500ms - 1s
+
+**Send On Change:**
+- Always enable `SendOnChange: true` when possible
+- Reduces network traffic significantly
+- Only use `SendOnChange: false` when you need guaranteed periodic updates
+
+**Number of Subscriptions:**
+- The client can handle many simultaneous subscriptions
+- Each subscription is managed independently
+- TwinCAT may have limits (typically hundreds of subscriptions)
+
+### Common Patterns
+
+**Subscribe to struct fields:**
+
+```go
+// Subscribe to individual fields
+callback := func(data ads.SubscriptionData) {
+	structValue := data.Value.(map[string]any)
+	field1 := structValue["Field1"].(int32)
+	field2 := structValue["Field2"].(bool)
+	
+	fmt.Printf("Field1=%d, Field2=%v\n", field1, field2)
+}
+
+settings := ads.SubscriptionSettings{
+	CycleTime:    100 * time.Millisecond,
+	SendOnChange: true,
+}
+
+sub, err := client.SubscribeValue(851, "GVL.MyStruct", callback, settings)
+```
+
+**Subscribe to array elements:**
+
+```go
+// Subscribe to entire array
+callback := func(data ads.SubscriptionData) {
+	arrayValue := data.Value.([]any)
+	fmt.Printf("Array length: %d\n", len(arrayValue))
+	
+	for i, item := range arrayValue {
+		fmt.Printf("  [%d] = %v\n", i, item)
+	}
+}
+
+sub, err := client.SubscribeValue(851, "GVL.MyArray", callback, settings)
+```
+
+**Conditional notifications:**
+
+```go
+// Only log when value exceeds threshold
+callback := func(data ads.SubscriptionData) {
+	if temperature, ok := data.Value.(float32); ok {
+		if temperature > 80.0 {
+			fmt.Printf("⚠️ High temperature: %.1f°C\n", temperature)
+		}
+	}
+}
+```
+
+### Troubleshooting
+
+**Notifications not received:**
+- Verify PLC is in RUN mode (`GetCurrentState()`)
+- Check that the variable path is correct
+- Ensure `CycleTime` is not too long
+- Verify the variable value is actually changing
+
+**Too many notifications:**
+- Increase `CycleTime` to reduce frequency
+- Enable `SendOnChange: true` to filter unchanged values
+- Consider if you really need such frequent updates
+
+**Subscriptions lost after restart:**
+- This is expected behavior when TwinCAT restarts
+- Use `OnConnectionLost` hook to re-subscribe automatically
+- See "Handling TwinCAT Restarts" section above
+
 ## Device Information
 
 Read information about the target device:
@@ -1192,15 +1951,15 @@ The package is organized into submodules, each handling a specific aspect of the
 
 The following features are planned for future releases:
 
-## ADS Notifications (Subscriptions)
+## ✅ ADS Notifications (Subscriptions) - IMPLEMENTED
 
 Event-driven value monitoring:
-- Subscribe to variable value changes
-- Automatic notification handling
-- Multiple simultaneous subscriptions
-- Configurable cycle times and change thresholds
+- ✅ Subscribe to variable value changes
+- ✅ Automatic notification handling
+- ✅ Multiple simultaneous subscriptions
+- ✅ Configurable cycle times and change thresholds
 
-**Status:** ADS commands defined, client methods not yet implemented
+**Status:** ✅ Complete - See [Subscriptions & Notifications](#subscriptions--notifications) section
 
 ## Variable Handle Management
 
@@ -1278,6 +2037,11 @@ The project uses table-driven tests with clear test cases:
 Complete working examples can be found in:
 
 - **cmd/main.go** - Command-line interface with interactive commands
+  - Connection management with automatic reconnection
+  - State monitoring with visual prompt indicators
+  - Subscription commands: `subscribe`, `list_subs`, `unsubscribe`, `unsubscribe_all`
+  - System commands: `state`, `monitor`, `toConfig`, `toRun`
+  - Read/write commands for testing
 - **example/** - Additional usage examples (coming soon)
 
 To run the CLI example:
@@ -1285,6 +2049,14 @@ To run the CLI example:
 cd cmd
 go run main.go
 ```
+
+**CLI Features:**
+- 🟢 Green prompt = PLC running (operations available)
+- 🔵 Blue prompt = PLC in config mode
+- 🔴 Red prompt = PLC stopped
+- Interactive command history (use arrow keys)
+- Real-time subscription notifications
+- Automatic state change logging
 
 # License
 

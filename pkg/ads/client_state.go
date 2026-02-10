@@ -79,13 +79,69 @@ func (c *Client) checkState(pollerID int) {
 	oldState := c.currentState
 	c.stateMutex.RUnlock()
 
-	// Read the current state
-	newState, err := c.ReadTcSystemState()
-	if err != nil {
-		c.logger.Warn("checkState: Failed to read system state", "error", err)
-		// Schedule next check even if this one failed
-		c.scheduleNextStateCheck(pollerID)
-		return
+	// Check if we should try extended state
+	c.extendedStateMutex.RLock()
+	extendedSupported := c.extendedStateSupported
+	oldRestartIndex := c.lastRestartIndex
+	c.extendedStateMutex.RUnlock()
+
+	var newState *adsstateinfo.SystemState
+	var newRestartIndex *uint16
+
+	// Try to read extended state if supported or unknown
+	if extendedSupported == nil || *extendedSupported {
+		extState, err := c.ReadTcSystemExtendedState()
+		if err != nil {
+			// If extended state is unknown, mark it as not supported
+			if extendedSupported == nil {
+				c.logger.Info("checkState: Extended state not supported, falling back to basic state")
+				notSupported := false
+				c.extendedStateMutex.Lock()
+				c.extendedStateSupported = &notSupported
+				c.extendedStateMutex.Unlock()
+			}
+
+			// Fall back to basic state
+			basicState, err := c.ReadTcSystemState()
+			if err != nil {
+				c.logger.Warn("checkState: Failed to read system state", "error", err)
+				// Schedule next check even if this one failed
+				c.scheduleNextStateCheck(pollerID)
+				return
+			}
+			newState = basicState
+		} else {
+			// Extended state read successfully
+			if extendedSupported == nil {
+				c.logger.Info("checkState: Extended state supported")
+				supported := true
+				c.extendedStateMutex.Lock()
+				c.extendedStateSupported = &supported
+				c.extendedStateMutex.Unlock()
+			}
+
+			// Convert extended state to basic state for comparison
+			newState = &adsstateinfo.SystemState{
+				AdsState:    extState.AdsState,
+				DeviceState: extState.DeviceState,
+			}
+			newRestartIndex = &extState.RestartIndex
+
+			// Update last restart index
+			c.extendedStateMutex.Lock()
+			c.lastRestartIndex = newRestartIndex
+			c.extendedStateMutex.Unlock()
+		}
+	} else {
+		// Extended state not supported, use basic state
+		basicState, err := c.ReadTcSystemState()
+		if err != nil {
+			c.logger.Warn("checkState: Failed to read system state", "error", err)
+			// Schedule next check even if this one failed
+			c.scheduleNextStateCheck(pollerID)
+			return
+		}
+		newState = basicState
 	}
 
 	// Update the cached state
@@ -117,6 +173,22 @@ func (c *Client) checkState(pollerID int) {
 			})
 			return
 		}
+	} else if newRestartIndex != nil && oldRestartIndex != nil && *newRestartIndex != *oldRestartIndex {
+		// Restart detected - restart index changed but ADS state stayed the same
+		c.logger.Info("checkState: TwinCAT system restarted (restart index changed)",
+			"state", newState.AdsState.String(),
+			"restartIndex", *newRestartIndex,
+			"previousRestartIndex", *oldRestartIndex)
+
+		// Invoke state change hook (state "changed" even though AdsState is the same)
+		c.invokeStateChangeHook(newState, oldState)
+
+		// Trigger connection lost to allow user to re-read values and re-subscribe
+		// Don't schedule next check - let user handle reconnection in hook
+		go c.invokeHook("OnConnectionLost", func() {
+			c.settings.OnConnectionLost(c, fmt.Errorf("TwinCAT system restarted (restart index: %d → %d)", *oldRestartIndex, *newRestartIndex))
+		})
+		return
 	}
 
 	// Schedule next check

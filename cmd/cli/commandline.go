@@ -23,7 +23,7 @@ func getPrompt(client *ads.Client) string {
 	case types.ADSStateRun:
 		return "🟢 > " // Green - Running
 	case types.ADSStateConfig:
-		return "🟡 > " // Yellow - Config mode
+		return "🔵 > " // Blue - Config mode
 	case types.ADSStateStop:
 		return "🔴 > " // Red - Stopped
 	case types.ADSStateError:

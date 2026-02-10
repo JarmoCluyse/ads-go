@@ -70,6 +70,7 @@ Active development. Core features are stable and tested.
   - [Raw Operations](#raw-operations)
   - [Symbol and Type Information](#symbol-and-type-information)
   - [PLC Control](#plc-control)
+  - [State Monitoring & Event Handling](#state-monitoring--event-handling)
   - [Device Information](#device-information)
   - [Logging](#logging)
   - [Disconnecting](#disconnecting)
@@ -365,6 +366,8 @@ Complete working examples can be found in `cmd/main.go` and `example/` directory
 | `BuildDataType(name, port)` | Recursively builds complex data type structures |
 | `ReadDeviceInfo()` | Reads device name and version information |
 | `ReadTcSystemState()` | Reads current TwinCAT system state |
+| `ReadTcSystemExtendedState()` | Reads extended system state including restart index (TwinCAT 4022+) |
+| `GetCurrentState()` | Returns cached current system state (updated by state monitoring) |
 | `SetTcSystemToConfig()` | Sets TwinCAT system to CONFIG mode |
 | `SetTcSystemToRun()` | Sets TwinCAT system to RUN mode |
 | `WriteControl(adsState, deviceState, targetPort)` | Low-level state control |
@@ -965,6 +968,259 @@ if err != nil {
 	log.Fatal(err)
 }
 ```
+
+## State Monitoring & Event Handling
+
+The client can automatically monitor TwinCAT system state changes and detect restarts. This is useful for handling connection issues, state transitions, and TwinCAT system restarts.
+
+### Automatic State Monitoring
+
+By default, the client checks the system state every 2 seconds and triggers event handlers when changes are detected.
+
+**Key Features:**
+- Detects state changes (Run ↔ Config ↔ Stop)
+- Detects TwinCAT system restarts (even when state stays "Run")
+- Auto-detects extended state support (TwinCAT 4022+)
+- Thread-safe with automatic cleanup
+
+### OnStateChange Hook
+
+Called whenever the TwinCAT system state changes:
+
+```go
+settings := ads.ClientSettings{
+	TargetAmsNetId: "localhost",
+	TargetAdsPort:  851,
+	
+	// Called on state changes
+	OnStateChange: func(client *ads.Client, newState, oldState *adsstateinfo.SystemState) {
+		if oldState == nil {
+			// Initial state after connection
+			fmt.Printf("Initial state: %s\n", newState.AdsState.String())
+		} else {
+			// State changed
+			fmt.Printf("State changed: %s → %s\n", 
+				oldState.AdsState.String(), 
+				newState.AdsState.String())
+		}
+	},
+}
+
+client := ads.NewClient(settings, nil)
+```
+
+**Common State Transitions:**
+- `Run` → `Config`: PLC stopped for configuration
+- `Config` → `Run`: PLC started after configuration
+- `Run` → `Stop`: PLC stopped
+- `Stop` → `Run`: PLC started
+
+### OnConnectionLost Hook
+
+Called when the connection is lost unexpectedly or TwinCAT restarts:
+
+```go
+settings := ads.ClientSettings{
+	TargetAmsNetId: "localhost",
+	TargetAdsPort:  851,
+	
+	// Called when connection drops or TwinCAT restarts
+	OnConnectionLost: func(client *ads.Client, err error) {
+		fmt.Printf("Connection lost: %v\n", err)
+		
+		// Re-read values and re-subscribe to notifications here
+		// The ADS connection is still alive, but TwinCAT restarted
+	},
+}
+
+client := ads.NewClient(settings, nil)
+```
+
+**When This Is Triggered:**
+- TwinCAT state leaves "Run" mode (→ Config, Stop, Error, etc.)
+- TwinCAT system restarts (detected via restart index change)
+- Physical network connection drops
+
+### TwinCAT Restart Detection
+
+When TwinCAT restarts using `toRun` command, the ADS state may remain "Run" but subscriptions are cleared. The client detects this by monitoring the **restart index** from extended system state.
+
+**How It Works:**
+1. On first state check, auto-detects extended state support
+2. Monitors both `AdsState` AND `RestartIndex` on each poll
+3. When `RestartIndex` changes → triggers `OnConnectionLost`
+4. Works with TwinCAT 4022 and newer (gracefully falls back on older versions)
+
+**Example Log Output:**
+
+```
+TwinCAT system restarted (restart index: 44 → 48)
+EVENT: TwinCAT system state changed fromState=Run toState=Run
+EVENT: ADS connection lost unexpectedly
+```
+
+### Reading Extended System State
+
+For TwinCAT 4022 and newer, you can read extended system information including the restart index:
+
+```go
+extState, err := client.ReadTcSystemExtendedState()
+if err != nil {
+	// Extended state not supported or error
+	log.Printf("Extended state not available: %v", err)
+} else {
+	fmt.Printf("Restart Index: %d\n", extState.RestartIndex)
+	fmt.Printf("TwinCAT Version: %d.%d.%d\n", 
+		extState.Version, extState.Revision, extState.Build)
+	fmt.Printf("Platform: %d, OS Type: %d\n", 
+		extState.Platform, extState.OsType)
+}
+
+/* Output:
+Restart Index: 48
+TwinCAT Version: 3.1.4024
+Platform: 1, OS Type: 2
+*/
+```
+
+**Extended State Fields:**
+- `RestartIndex` (uint16): Increments on every TwinCAT restart
+- `Version`, `Revision`, `Build`: TwinCAT version information
+- `Platform`: Platform identifier (1=PC, 5=ARM, etc.)
+- `OsType`: Operating system type (2=Windows, 10=Linux, etc.)
+- `Flags`: System service state flags
+
+### Getting Current State
+
+Retrieve the cached current state (updated by background monitoring):
+
+```go
+currentState := client.GetCurrentState()
+if currentState == nil {
+	fmt.Println("State not available yet (still initializing)")
+} else {
+	fmt.Printf("Current state: %s\n", currentState.AdsState.String())
+	
+	// Check if PLC is running
+	if currentState.AdsState == types.ADSStateRun {
+		fmt.Println("PLC is running - operations available")
+	}
+}
+```
+
+### Customizing State Polling
+
+Change the polling interval (default is 2 seconds):
+
+```go
+settings := ads.ClientSettings{
+	TargetAmsNetId: "localhost",
+	TargetAdsPort:  851,
+	
+	// Check state every 5 seconds
+	StatePollingInterval: 5 * time.Second,
+}
+
+client := ads.NewClient(settings, nil)
+```
+
+**Disable state monitoring:**
+
+```go
+settings := ads.ClientSettings{
+	TargetAmsNetId: "localhost",
+	TargetAdsPort:  851,
+	
+	// Disable automatic state monitoring
+	StatePollingInterval: 0,
+}
+
+client := ads.NewClient(settings, nil)
+```
+
+### Complete Example
+
+Here's a complete example with state monitoring and reconnection logic:
+
+```go
+package main
+
+import (
+	"fmt"
+	"log"
+	"time"
+	
+	"github.com/jarmocluyse/ads-go/pkg/ads"
+	"github.com/jarmocluyse/ads-go/pkg/ads/ads-stateinfo"
+	"github.com/jarmocluyse/ads-go/pkg/ads/types"
+)
+
+func main() {
+	settings := ads.ClientSettings{
+		TargetAmsNetId: "localhost",
+		TargetAdsPort:  851,
+		
+		// Monitor state changes
+		OnStateChange: func(client *ads.Client, newState, oldState *adsstateinfo.SystemState) {
+			if oldState == nil {
+				fmt.Printf("Initial state: %s\n", newState.AdsState.String())
+				return
+			}
+			
+			fmt.Printf("State changed: %s → %s\n",
+				oldState.AdsState.String(),
+				newState.AdsState.String())
+			
+			// Detect Run mode entry
+			if newState.AdsState == types.ADSStateRun && 
+			   oldState.AdsState != types.ADSStateRun {
+				fmt.Println("TwinCAT entered RUN mode")
+				// Re-initialize your application logic here
+			}
+		},
+		
+		// Handle connection loss / restart
+		OnConnectionLost: func(client *ads.Client, err error) {
+			fmt.Printf("Connection lost: %v\n", err)
+			
+			// Wait for TwinCAT to come back to Run mode
+			fmt.Println("Waiting for TwinCAT to return to Run mode...")
+			
+			for {
+				time.Sleep(1 * time.Second)
+				state := client.GetCurrentState()
+				
+				if state != nil && state.AdsState == types.ADSStateRun {
+					fmt.Println("TwinCAT back in Run mode!")
+					
+					// Re-read values and re-subscribe here
+					// Example: resubscribeToNotifications(client)
+					break
+				}
+			}
+		},
+	}
+	
+	client := ads.NewClient(settings, nil)
+	
+	if err := client.Connect(); err != nil {
+		log.Fatal(err)
+	}
+	defer client.Disconnect()
+	
+	fmt.Println("Connected - monitoring state changes...")
+	
+	// Your application logic here
+	select {} // Keep running
+}
+```
+
+**Key Points:**
+- State monitoring runs automatically in the background
+- Hooks are called asynchronously (don't block)
+- ADS connection stays alive during TwinCAT restarts
+- User must re-read values and re-subscribe after restart
+- `GetCurrentState()` returns cached state (no network call)
 
 ## Device Information
 

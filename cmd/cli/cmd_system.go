@@ -102,7 +102,7 @@ func handleMonitor(args []string, client *ads.Client) {
 	fmt.Println()
 	fmt.Println("[INFO] Prompt Indicators:")
 	fmt.Println("  🟢 > = TwinCAT in Run mode (operations available)")
-	fmt.Println("  🟡 > = TwinCAT in Config mode (operations blocked)")
+	fmt.Println("  🔵 > = TwinCAT in Config mode (operations blocked)")
 	fmt.Println("  🔴 > = TwinCAT stopped (operations blocked)")
 	fmt.Println("  ❌ > = TwinCAT in error state")
 	fmt.Println("  ⚪ > = State unknown or disconnected")

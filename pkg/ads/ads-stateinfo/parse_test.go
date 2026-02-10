@@ -173,6 +173,212 @@ func TestCheckSystemState(t *testing.T) {
 	}
 }
 
+func TestParseExtendedSystemState(t *testing.T) {
+	tests := []struct {
+		name        string
+		data        []byte
+		expected    ExtendedSystemState
+		expectError bool
+		errorType   error
+	}{
+		{
+			name: "Valid - Run state with restart index",
+			data: buildExtendedSystemStateData(types.ADSStateRun, 0x1234, 42, 3, 1, 4024, 1, 2, 0x0100),
+			expected: ExtendedSystemState{
+				AdsState:     types.ADSStateRun,
+				DeviceState:  0x1234,
+				RestartIndex: 42,
+				Version:      3,
+				Revision:     1,
+				Build:        4024,
+				Platform:     1,
+				OsType:       2,
+				Flags:        0x0100,
+			},
+			expectError: false,
+		},
+		{
+			name: "Valid - Config state with zero restart index",
+			data: buildExtendedSystemStateData(types.ADSStateConfig, 0xABCD, 0, 3, 1, 4026, 5, 10, 0x0000),
+			expected: ExtendedSystemState{
+				AdsState:     types.ADSStateConfig,
+				DeviceState:  0xABCD,
+				RestartIndex: 0,
+				Version:      3,
+				Revision:     1,
+				Build:        4026,
+				Platform:     5,
+				OsType:       10,
+				Flags:        0x0000,
+			},
+			expectError: false,
+		},
+		{
+			name: "Valid - Stop state with high restart index",
+			data: buildExtendedSystemStateData(types.ADSStateStop, 0xFFFF, 65535, 255, 255, 65535, 255, 255, 0xFFFF),
+			expected: ExtendedSystemState{
+				AdsState:     types.ADSStateStop,
+				DeviceState:  0xFFFF,
+				RestartIndex: 65535,
+				Version:      255,
+				Revision:     255,
+				Build:        65535,
+				Platform:     255,
+				OsType:       255,
+				Flags:        0xFFFF,
+			},
+			expectError: false,
+		},
+		{
+			name: "Valid - Restart detected (index incremented)",
+			data: buildExtendedSystemStateData(types.ADSStateRun, 0x0000, 100, 3, 1, 4024, 1, 2, 0x0100),
+			expected: ExtendedSystemState{
+				AdsState:     types.ADSStateRun,
+				DeviceState:  0x0000,
+				RestartIndex: 100,
+				Version:      3,
+				Revision:     1,
+				Build:        4024,
+				Platform:     1,
+				OsType:       2,
+				Flags:        0x0100,
+			},
+			expectError: false,
+		},
+		{
+			name:        "Invalid - less than 16 bytes",
+			data:        []byte{0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F},
+			expected:    ExtendedSystemState{},
+			expectError: true,
+			errorType:   ErrInvalidExtendedStateLength,
+		},
+		{
+			name:        "Invalid - empty data",
+			data:        []byte{},
+			expected:    ExtendedSystemState{},
+			expectError: true,
+			errorType:   ErrInvalidExtendedStateLength,
+		},
+		{
+			name:        "Invalid - exactly 4 bytes (basic state only)",
+			data:        []byte{0x05, 0x00, 0x00, 0x00},
+			expected:    ExtendedSystemState{},
+			expectError: true,
+			errorType:   ErrInvalidExtendedStateLength,
+		},
+		{
+			name: "Valid - more than 16 bytes (ignores extra)",
+			data: append(buildExtendedSystemStateData(types.ADSStateRun, 0x5678, 10, 3, 1, 4024, 1, 2, 0x0100), 0xFF, 0xFF, 0xFF),
+			expected: ExtendedSystemState{
+				AdsState:     types.ADSStateRun,
+				DeviceState:  0x5678,
+				RestartIndex: 10,
+				Version:      3,
+				Revision:     1,
+				Build:        4024,
+				Platform:     1,
+				OsType:       2,
+				Flags:        0x0100,
+			},
+			expectError: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			state, err := ParseExtendedSystemState(tt.data)
+
+			if tt.expectError {
+				if err == nil {
+					t.Errorf("Expected error but got none")
+					return
+				}
+				if tt.errorType != nil && !errors.Is(err, tt.errorType) {
+					t.Errorf("Expected error type %v, got %v", tt.errorType, err)
+					return
+				}
+				return
+			}
+
+			if err != nil {
+				t.Errorf("Unexpected error: %v", err)
+				return
+			}
+
+			assert.Equal(t, tt.expected.AdsState, state.AdsState)
+			assert.Equal(t, tt.expected.DeviceState, state.DeviceState)
+			assert.Equal(t, tt.expected.RestartIndex, state.RestartIndex)
+			assert.Equal(t, tt.expected.Version, state.Version)
+			assert.Equal(t, tt.expected.Revision, state.Revision)
+			assert.Equal(t, tt.expected.Build, state.Build)
+			assert.Equal(t, tt.expected.Platform, state.Platform)
+			assert.Equal(t, tt.expected.OsType, state.OsType)
+			assert.Equal(t, tt.expected.Flags, state.Flags)
+		})
+	}
+}
+
+func TestCheckExtendedSystemState(t *testing.T) {
+	tests := []struct {
+		name        string
+		data        []byte
+		expectError bool
+		errorType   error
+	}{
+		{
+			name:        "Valid - exactly 16 bytes",
+			data:        buildExtendedSystemStateData(types.ADSStateRun, 0x1234, 42, 3, 1, 4024, 1, 2, 0x0100),
+			expectError: false,
+		},
+		{
+			name:        "Valid - more than 16 bytes",
+			data:        append(buildExtendedSystemStateData(types.ADSStateStop, 0xABCD, 10, 3, 1, 4026, 5, 10, 0x0000), 0xFF, 0xFF),
+			expectError: false,
+		},
+		{
+			name:        "Invalid - less than 16 bytes",
+			data:        []byte{0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F},
+			expectError: true,
+			errorType:   ErrInvalidExtendedStateLength,
+		},
+		{
+			name:        "Invalid - empty data",
+			data:        []byte{},
+			expectError: true,
+			errorType:   ErrInvalidExtendedStateLength,
+		},
+		{
+			name:        "Invalid - exactly 4 bytes (basic state only)",
+			data:        []byte{0x05, 0x00, 0x00, 0x00},
+			expectError: true,
+			errorType:   ErrInvalidExtendedStateLength,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := CheckExtendedSystemState(tt.data)
+
+			if tt.expectError {
+				if err == nil {
+					t.Errorf("Expected error but got none")
+					return
+				}
+				if tt.errorType != nil && !errors.Is(err, tt.errorType) {
+					t.Errorf("Expected error type %v, got %v", tt.errorType, err)
+					return
+				}
+				return
+			}
+
+			if err != nil {
+				t.Errorf("Unexpected error: %v", err)
+				return
+			}
+		})
+	}
+}
+
 func TestParseDeviceInfo(t *testing.T) {
 	tests := []struct {
 		name        string
@@ -418,5 +624,21 @@ func buildDeviceInfoDataRaw(major uint8, minor uint8, build uint16, nameBytes []
 	binary.LittleEndian.PutUint16(data[2:4], build)
 	// Copy exactly 16 bytes for name field
 	copy(data[4:20], nameBytes)
+	return data
+}
+
+// Helper function to build extended system state data for testing
+func buildExtendedSystemStateData(adsState types.ADSState, deviceState, restartIndex uint16, version, revision uint8, build uint16, platform, osType uint8, flags uint16) []byte {
+	data := make([]byte, 16)
+	binary.LittleEndian.PutUint16(data[0:2], uint16(adsState))
+	binary.LittleEndian.PutUint16(data[2:4], deviceState)
+	binary.LittleEndian.PutUint16(data[4:6], restartIndex)
+	data[6] = version
+	data[7] = revision
+	binary.LittleEndian.PutUint16(data[8:10], build)
+	data[10] = platform
+	data[11] = osType
+	binary.LittleEndian.PutUint16(data[12:14], flags)
+	// Bytes 14-15 are reserved (zeros)
 	return data
 }

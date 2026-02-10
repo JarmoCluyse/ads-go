@@ -53,6 +53,9 @@ func (c *Client) Connect() error {
 		c.currentState = initialState
 		c.stateMutex.Unlock()
 		c.logger.Info("Connect: Initial TwinCAT state", "state", initialState.AdsState.String())
+
+		// Trigger OnStateChange hook for initial state (with oldState=nil)
+		c.invokeStateChangeHook(initialState, nil)
 	}
 
 	// Start state poller if enabled

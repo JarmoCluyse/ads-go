@@ -20,21 +20,24 @@ type Response struct {
 
 // Client represents an ADS client.
 type Client struct {
-	conn               net.Conn                       // tcp connection
-	settings           ClientSettings                 // client settings
-	mutex              sync.Mutex                     // mutex for invoke id and request map
-	invokeID           uint32                         // last used invoke id
-	requests           map[uint32]chan Response       // channel map to write the responses to
-	localAmsAddr       AmsAddress                     // local asigned ams adres
-	receiveBuffer      bytes.Buffer                   // Buffer for incoming data
-	logger             *slog.Logger                   // logger
-	subscriptions      map[uint32]*ActiveSubscription // active subscriptions map[notificationHandle]subscription
-	subscriptionsMutex sync.RWMutex                   // mutex for subscriptions map
-	currentState       *adsstateinfo.SystemState      // current cached TwinCAT system state
-	stateMutex         sync.RWMutex                   // protects currentState
-	statePollerTimer   *time.Timer                    // state polling timer
-	statePollerID      int                            // unique poller ID to prevent multiple timers
-	statePollerMutex   sync.Mutex                     // protects timer operations
+	conn                   net.Conn                       // tcp connection
+	settings               ClientSettings                 // client settings
+	mutex                  sync.Mutex                     // mutex for invoke id and request map
+	invokeID               uint32                         // last used invoke id
+	requests               map[uint32]chan Response       // channel map to write the responses to
+	localAmsAddr           AmsAddress                     // local asigned ams adres
+	receiveBuffer          bytes.Buffer                   // Buffer for incoming data
+	logger                 *slog.Logger                   // logger
+	subscriptions          map[uint32]*ActiveSubscription // active subscriptions map[notificationHandle]subscription
+	subscriptionsMutex     sync.RWMutex                   // mutex for subscriptions map
+	currentState           *adsstateinfo.SystemState      // current cached TwinCAT system state
+	stateMutex             sync.RWMutex                   // protects currentState
+	statePollerTimer       *time.Timer                    // state polling timer
+	statePollerID          int                            // unique poller ID to prevent multiple timers
+	statePollerMutex       sync.Mutex                     // protects timer operations
+	extendedStateSupported *bool                          // nil = unknown, true/false = tested
+	lastRestartIndex       *uint16                        // last seen restart index (nil if not yet read or not supported)
+	extendedStateMutex     sync.RWMutex                   // protects extended state fields
 }
 
 // ClientSettings holds the settings for the ADS client.

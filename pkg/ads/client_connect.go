@@ -33,10 +33,10 @@ func (c *Client) Connect() error {
 
 	// TODO: check if this is needed
 	if err := c.setupPlcConnection(); err != nil {
-		c.logger.Warn("PLC setup nor complete", "error", err)
+		c.logger.Warn("Connect: PLC setup not complete", "error", err)
 	}
 
-	c.logger.Debug("Connect: PLC connection setup complete")
+	c.logger.Info("Connect: Successfully connected to ADS router")
 
 	return nil
 }

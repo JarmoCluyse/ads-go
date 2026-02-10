@@ -2,6 +2,9 @@
 
 [![Go Reference](https://pkg.go.dev/badge/github.com/jarmocluyse/ads-go.svg)](https://pkg.go.dev/github.com/jarmocluyse/ads-go)
 [![Go Report Card](https://goreportcard.com/badge/github.com/jarmocluyse/ads-go)](https://goreportcard.com/report/github.com/jarmocluyse/ads-go)
+[![Test](https://github.com/JarmoCluyse/ads-go/actions/workflows/test.yml/badge.svg)](https://github.com/JarmoCluyse/ads-go/actions/workflows/test.yml)
+[![Lint](https://github.com/JarmoCluyse/ads-go/actions/workflows/lint.yml/badge.svg)](https://github.com/JarmoCluyse/ads-go/actions/workflows/lint.yml)
+[![Build](https://github.com/JarmoCluyse/ads-go/actions/workflows/build.yml/badge.svg)](https://github.com/JarmoCluyse/ads-go/actions/workflows/build.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
 Beckhoff TwinCAT ADS client library for Go (unofficial).
@@ -1991,13 +1994,16 @@ Improve performance for multiple operations:
 
 **Status:** Index groups defined, not implemented
 
-## Contributions
+## Contributing
 
-Contributions, issues, and feature requests are welcome!
+Contributions, issues, and feature requests are welcome! Please see our [Contributing Guide](CONTRIBUTING.md) for details on how to get started.
 
-- Report bugs: [GitHub Issues](https://github.com/jarmocluyse/ads-go/issues)
-- Suggest features: [GitHub Discussions](https://github.com/jarmocluyse/ads-go/discussions)
-- Submit pull requests: Fork and submit PR
+**Quick Links:**
+- **[Contributing Guide](CONTRIBUTING.md)** - How to contribute to this project
+- **[Code of Conduct](CODE_OF_CONDUCT.md)** - Our community standards
+- **[Security Policy](SECURITY.md)** - How to report security vulnerabilities
+- **[Report bugs](https://github.com/jarmocluyse/ads-go/issues)** - GitHub Issues
+- **[Suggest features](https://github.com/jarmocluyse/ads-go/discussions)** - GitHub Discussions
 
 # Testing
 

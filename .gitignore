@@ -1,0 +1,71 @@
+# Binaries for programs and plugins
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Test binary, built with `go test -c`
+*.test
+
+# Output of the go coverage tool, specifically when used with LiteIDE
+*.out
+
+# Go workspace file
+go.work
+
+# Build artifacts
+/bin/
+/dist/
+/build/
+
+# CLI binary
+/cmd/ads-cli
+/cmd/ads-cli.exe
+
+# Dependency directories
+vendor/
+
+# Test coverage
+coverage.txt
+coverage.html
+*.coverprofile
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# OS files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Desktop.ini
+
+# TwinCAT specific (if you add TwinCAT project files later)
+*.tpy
+_CompileInfo/
+_Libraries/
+LineIDs.dbg
+*.tmc~
+
+# Environment and config files (if you add these)
+.env
+.env.local
+*.local
+
+# Debug files
+debug
+__debug_bin

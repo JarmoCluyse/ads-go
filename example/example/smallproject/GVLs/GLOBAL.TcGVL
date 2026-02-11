@@ -1,0 +1,33 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <GVL Name="GLOBAL" Id="{59efc058-0b0e-4cc0-893e-e7a5612387a6}">
+    <Declaration><![CDATA[{attribute 'qualified_only'}
+VAR_GLOBAL
+	gMyInt: INT := 0;
+    gMyBool : BOOL;
+	gMyDINT : DINT;
+	
+	gMyIntCounter : INT := 0;
+	gMyBoolToogle : BOOL := FALSE;
+	
+	gIntCounterActive : BOOL := TRUE;
+	gBoolToggleActive : BOOL := TRUE;
+	
+	// Period used by the timed logic (modifiable via ADS)
+    gCyclePeriod      : TIME := T#2S;
+	
+	// -----------------------
+	
+	gTimedIntCounter : INT := 0;
+	gTimedBoolToogle : BOOL := FALSE;
+	
+	gTimedCounterActive : BOOL := TRUE;
+	gTimedToggleActive : BOOL := TRUE;
+	
+	 gIntArray : ARRAY[0..100] OF INT;  
+
+	gMyDUT : DUTSample;
+
+END_VAR]]></Declaration>
+  </GVL>
+</TcPlcObject>

@@ -6,7 +6,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/jarmocluyse/ads-go/example/cli"
+	"github.com/jarmocluyse/ads-go/cmd/cli"
 	"github.com/jarmocluyse/ads-go/pkg/ads"
 	adsstateinfo "github.com/jarmocluyse/ads-go/pkg/ads/ads-stateinfo"
 	"github.com/jarmocluyse/ads-go/pkg/ads/types"

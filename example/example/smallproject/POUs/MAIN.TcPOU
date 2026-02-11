@@ -1,0 +1,57 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <POU Name="MAIN" Id="{7992a583-284c-4ce0-b1dd-ad28638c7c1d}" SpecialFunc="None">
+    <Declaration><![CDATA[PROGRAM MAIN
+VAR
+	fbTimer : TON;
+    bTick   : BOOL;
+
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[
+// ------------------------------------------------------------
+// A) Cycle-based behavior (each PLC scan)
+// ------------------------------------------------------------
+
+IF GLOBAL.gIntCounterActive THEN
+    GLOBAL.gMyIntCounter := GLOBAL.gMyIntCounter + 1;
+END_IF
+
+IF GLOBAL.gBoolToggleActive THEN
+    GLOBAL.gMyBoolToogle := NOT GLOBAL.gMyBoolToogle;
+END_IF
+
+// ------------------------------------------------------------
+// B) Time-based behavior (every gCyclePeriod)
+// This triggers a "tick" each time the TON elapses.
+// ------------------------------------------------------------
+fbTimer(IN := TRUE, PT := GLOBAL.gCyclePeriod);
+
+// bTick is TRUE only when timer is done
+bTick := fbTimer.Q;
+
+IF bTick THEN
+    // Do the same actions, but only on the tick
+    IF GLOBAL.gTimedCounterActive THEN
+        GLOBAL.gTimedIntCounter := GLOBAL.gTimedIntCounter + 1;
+    END_IF
+
+    IF GLOBAL.gTimedToggleActive THEN
+        GLOBAL.gTimedBoolToogle := NOT GLOBAL.gTimedBoolToogle;
+    END_IF
+
+    // Retrigger timer (create a periodic pulse)
+    fbTimer(IN := FALSE);
+END_IF]]></ST>
+    </Implementation>
+    <LineIds Name="MAIN">
+      <LineId Id="10" Count="3" />
+      <LineId Id="23" Count="0" />
+      <LineId Id="14" Count="5" />
+      <LineId Id="2" Count="0" />
+      <LineId Id="25" Count="21" />
+      <LineId Id="24" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

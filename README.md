@@ -1058,7 +1058,7 @@ client := ads.NewClient(settings, nil)
 
 ### TwinCAT Restart Detection
 
-When TwinCAT restarts using `toRun` command, the ADS state may remain "Run" but subscriptions are cleared. The client detects this by monitoring the **restart index** from extended system state.
+When TwinCAT restarts using `set_state run` command, the ADS state may remain "Run" but subscriptions are cleared. The client detects this by monitoring the **restart index** from extended system state.
 
 **How It Works:**
 1. On first state check, auto-detects extended state support
@@ -2045,27 +2045,209 @@ The project uses table-driven tests with clear test cases:
 
 Complete working examples can be found in:
 
-- **cmd/main.go** - Command-line interface with interactive commands
-  - Connection management with automatic reconnection
-  - State monitoring with visual prompt indicators
-  - Subscription commands: `subscribe`, `list_subs`, `unsubscribe`, `unsubscribe_all`
-  - System commands: `state`, `monitor`, `toConfig`, `toRun`
-  - Read/write commands for testing
-- **example/** - Additional usage examples (coming soon)
+## Command-Line Interface (CLI)
 
-To run the CLI example:
+**Location:** `cmd/main.go`
+
+The CLI provides an interactive interface for testing and demonstrating the ads-go library features.
+
+### Running the CLI
+
 ```bash
 cd cmd
 go run main.go
 ```
 
-**CLI Features:**
+Or use the pre-built binary:
+```bash
+./cmd/ads-cli
+```
+
+### CLI Features
+
+**Visual Status Indicators:**
 - 🟢 Green prompt = PLC running (operations available)
 - 🔵 Blue prompt = PLC in config mode
 - 🔴 Red prompt = PLC stopped
-- Interactive command history (use arrow keys)
-- Real-time subscription notifications
-- Automatic state change logging
+- ⚪ White prompt = Disconnected or initializing
+
+**Intelligent Autocomplete:**
+- Command completion with TAB key
+- Argument suggestions for commands (e.g., `write_bool <TAB>` → `true`, `false`)
+- Variable path suggestions for `subscribe` command (14 common paths)
+- Dynamic subscription ID completions for `unsubscribe`
+- Object field suggestions for `write_object` (Counter=, Ready=)
+
+**Enhanced Subscription Management:**
+- Real-time notifications with timestamps
+- Subscription statistics (last value, update time, notification count)
+- Quick subscription shortcuts for common variables
+- Multiple simultaneous subscriptions
+- Enhanced list view with detailed information
+
+**Interactive Features:**
+- Command history navigation (use arrow keys)
+- Auto-reconnection on connection loss
+- Automatic state change detection
+- Connection lifecycle hooks
+
+### Available Commands
+
+#### System Commands
+- `device_info` - Get device information
+- `state` - Read current TwinCAT state
+- `state_loop` - Continuously monitor TwinCAT state
+- `monitor` - Monitor system notifications
+- `set_state <config|run>` - Switch TwinCAT state
+
+#### Read/Write Commands
+- `read_value` - Read `GLOBAL.gMyInt`
+- `read_bool` - Read `GLOBAL.gMyBool`
+- `read_object` - Read `GLOBAL.gMyDUT` (struct)
+- `read_array` - Read `GLOBAL.gIntArray`
+- `write_value <int>` - Write integer to `GLOBAL.gMyInt`
+- `write_bool <true|false>` - Write boolean to `GLOBAL.gMyBool`
+- `write_object Counter=<int> Ready=<bool>` - Write to `GLOBAL.gMyDUT`
+- `write_array <i1> <i2> <i3> <i4> <i5>` - Write 5 ints to `GLOBAL.gIntArray`
+
+#### Subscription Commands
+- `subscribe [path]` - Subscribe to variable changes (default: `GLOBAL.gMyBoolToogle`)
+- `list_subs` - List active subscriptions with statistics
+- `unsubscribe <id>` - Remove specific subscription
+- `unsubscribe_all` - Remove all subscriptions
+
+#### Subscription Shortcuts (Quick subscriptions for example project)
+- `sub_counter` - Subscribe to cycle-based counter (`GLOBAL.gMyIntCounter`)
+- `sub_toggle` - Subscribe to cycle-based toggle (`GLOBAL.gMyBoolToogle`)
+- `sub_timed_counter` - Subscribe to time-based counter (`GLOBAL.gTimedIntCounter`)
+- `sub_timed_toggle` - Subscribe to time-based toggle (`GLOBAL.gTimedBoolToogle`)
+- `sub_all` - Subscribe to all 4 counters/toggles at once
+
+#### Control Commands (For example project)
+- `enable_counter <bool>` - Enable/disable cycle-based counter
+- `enable_toggle <bool>` - Enable/disable cycle-based toggle
+- `enable_timed_counter <bool>` - Enable/disable time-based counter
+- `enable_timed_toggle <bool>` - Enable/disable time-based toggle
+- `read_counters` - Read all counter and toggle values
+- `reset_counters` - Reset all counters to zero
+- `read_status` - Show enable flag states
+- `set_period <seconds>` - Set cycle period (1-3600s, default 2s)
+- `read_period` - Read current cycle period
+
+### Example TwinCAT Project
+
+**Location:** `example/example/`
+
+The CLI works with an included TwinCAT 3 project that demonstrates various features:
+
+**Available Variables:**
+- `GLOBAL.gMyInt`, `GLOBAL.gMyBool`, `GLOBAL.gMyDINT` - Basic types for testing
+- `GLOBAL.gMyIntCounter` - Counter increments every PLC scan
+- `GLOBAL.gMyBoolToogle` - Boolean toggles every PLC scan
+- `GLOBAL.gTimedIntCounter` - Counter increments every cycle period (default 2s)
+- `GLOBAL.gTimedBoolToogle` - Boolean toggles every cycle period
+- `GLOBAL.gIntArray` - Array of 101 integers (CLI writes to first 5)
+- `GLOBAL.gMyDUT` - Structured data (Counter: INT, Ready: BOOL, gIntArray: ARRAY[0..50] OF INT)
+- `GLOBAL.gCyclePeriod` - Configurable timer period (TIME type, default T#2S)
+
+**Control Flags:**
+- `GLOBAL.gIntCounterActive` - Enable/disable cycle-based counter (default TRUE)
+- `GLOBAL.gBoolToggleActive` - Enable/disable cycle-based toggle (default TRUE)
+- `GLOBAL.gTimedCounterActive` - Enable/disable time-based counter (default TRUE)
+- `GLOBAL.gTimedToggleActive` - Enable/disable time-based toggle (default TRUE)
+
+The project includes:
+- Cycle-based logic that runs every PLC scan
+- Time-based logic triggered by configurable timer
+- All variables accessible via ADS for read/write operations
+- Perfect for testing subscriptions and real-time updates
+
+### Example Usage
+
+**Quick start with subscriptions:**
+```bash
+# Start the CLI
+./ads-cli
+
+# Subscribe to a fast-changing counter
+sub_counter
+
+# Subscribe to all counters/toggles at once
+sub_all
+
+# View subscription statistics with last values
+list_subs
+
+# Disable the cycle-based toggle
+enable_toggle false
+
+# Change timer period to 5 seconds
+set_period 5
+
+# Remove a specific subscription
+unsubscribe 1
+
+# Remove all subscriptions
+unsubscribe_all
+```
+
+**Testing variable operations:**
+```bash
+# Write a value
+write_value 42
+
+# Read it back
+read_value
+
+# Write a boolean
+write_bool true
+
+# Write a structured object
+write_object Counter=100 Ready=true
+
+# Write an array (first 5 elements)
+write_array 10 20 30 40 50
+
+# Read the array back
+read_array
+```
+
+**Monitoring system state:**
+```bash
+# Check current state
+state
+
+# Monitor state continuously (Ctrl+C to stop)
+state_loop
+
+# Switch to config mode
+set_state config
+
+# Return to run mode
+set_state run
+
+# Get device information
+device_info
+```
+
+**Using autocomplete:**
+```bash
+# Type 'sub_' and press TAB to see subscription shortcuts
+sub_<TAB>
+
+# Type 'write_bool ' and press TAB to see options
+write_bool <TAB>
+
+# Type 'subscribe ' and press TAB to see common variable paths
+subscribe <TAB>
+
+# Type 'unsubscribe ' and press TAB to see active subscription IDs
+unsubscribe <TAB>
+```
+
+## Additional Examples
+
+- **example/** - TwinCAT 3 example project with PLC program
 
 # License
 

@@ -7,6 +7,54 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **CLI Enhancements**: Major improvements to the command-line interface
+  - **Intelligent Autocomplete System**:
+    - Nested command completion with TAB key
+    - Argument suggestions for boolean commands (`true`/`false`)
+    - Variable path suggestions for `subscribe` command (14 common paths from example project)
+    - Dynamic subscription ID completions for `unsubscribe` command
+    - Object field suggestions for `write_object` (Counter=, Ready=)
+  - **Subscription Shortcut Commands**: Quick access to example project variables
+    - `sub_counter` - Subscribe to cycle-based counter (`GLOBAL.gMyIntCounter`)
+    - `sub_toggle` - Subscribe to cycle-based toggle (`GLOBAL.gMyBoolToogle`)
+    - `sub_timed_counter` - Subscribe to time-based counter (`GLOBAL.gTimedIntCounter`)
+    - `sub_timed_toggle` - Subscribe to time-based toggle (`GLOBAL.gTimedBoolToogle`)
+    - `sub_all` - Subscribe to all 4 counters/toggles simultaneously
+  - **Control Commands**: Interactive control for example project toggles and timers
+    - `enable_counter`, `enable_toggle`, `enable_timed_counter`, `enable_timed_toggle` - Control enable flags
+    - `read_counters` - Read all counter and toggle values at once
+    - `reset_counters` - Reset all counters and toggles to initial values
+    - `read_status` - Display status of all enable flags
+    - `set_period <seconds>` - Configure cycle period for timed operations (1-3600s)
+    - `read_period` - Display current cycle period
+  - **Enhanced Subscription Display**:
+    - `list_subs` now shows last received value, time since last update, and notification count
+    - Statistics tracking for each subscription (value, timestamp, count)
+    - Human-readable time formatting (ms/s/m/h)
+    - Multi-line display format for better readability
+- **Example TwinCAT Project**: Added complete working TwinCAT 3 project
+  - Location: `example/example/`
+  - Includes cycle-based and time-based counters and toggles
+  - Configurable timer period via ADS
+  - Enable/disable flags for all automatic behaviors
+  - Demonstrates real-time subscriptions and control operations
+  - 14 global variables available for testing (basic types, arrays, structs)
+
+### Changed
+- Updated CLI read/write commands to use example project variables
+  - `read_value`/`write_value` now use `GLOBAL.gMyInt`
+  - `read_bool`/`write_bool` now use `GLOBAL.gMyBool`
+  - `read_object`/`write_object` now use `GLOBAL.gMyDUT` (simplified to Counter/Ready fields)
+  - `read_array`/`write_array` now use `GLOBAL.gIntArray` (changed from 10 to 5 elements for usability)
+  - `subscribe` default path changed to `GLOBAL.gMyBoolToogle`
+- **Renamed state commands** for consistency: `toConfig`/`toRun` → `set_state config`/`set_state run`
+- Enhanced CLI help command with detailed command descriptions and usage examples
+- Improved subscription callback to track statistics automatically
+
+### Fixed
+- Removed redundant newline in help command output (go vet warning)
+
 ## [0.2.0] - 2026-02-10
 
 ### Added

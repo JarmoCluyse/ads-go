@@ -54,12 +54,40 @@ temp/
 ehthumbs.db
 Desktop.ini
 
-# TwinCAT specific (if you add TwinCAT project files later)
+# TwinCAT Build Artifacts (following official TwinCAT3 gitignore)
+# Reference: https://github.com/github/gitignore/blob/main/TwinCAT3.gitignore
+**/_Boot/
+**/_CompileInfo/
+**/_Libraries/
+**/_ModuleInstall/
+**/_Deployment/
+**/_Repository/
+**/.TcGit/
+
+# TwinCAT File Patterns
 *.tpy
-_CompileInfo/
-_Libraries/
+*.tclrs
+*.library
+*.compiled-library
+*.compileinfo
+*.asm
+*.core
 LineIDs.dbg
+LineIDs.dbg.bak
 *.tmc~
+*.tmcRefac
+*.tsproj.bak
+*.tsproj.b?k
+*.tsproj.orig
+*.tspproj.bak
+*.xti.bak
+*.xti.bk?
+*.xti.orig
+*.xtv
+*.xtv.bak
+*.xtv.bk?
+*.xt?.bk?
+*.xt?.orig
 
 # Environment and config files (if you add these)
 .env

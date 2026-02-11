@@ -22,8 +22,10 @@ example/
 
 1. Open TwinCAT XAE (Extended Automation Engineering)
 2. Open `example/example.sln`
-3. Activate configuration (if needed)
+3. Build the project: **TwinCAT → Activate Configuration**
 4. Set TwinCAT to RUN mode
+
+**Note:** The `_Boot/` directory (containing compiled boot files) is excluded from Git per TwinCAT best practices. It will be automatically generated when you activate the configuration in step 3.
 
 ## Available Variables
 

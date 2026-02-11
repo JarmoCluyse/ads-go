@@ -12,7 +12,7 @@ import (
 // Usage: enable_counter <true|false>
 func handleEnableCounter(args []string, client *ads.Client) {
 	data := "GLOBAL.gIntCounterActive"
-	var port uint16 = 350
+	var port uint16 = 852
 	if len(args) == 0 {
 		fmt.Println("[ERROR] Command 'enable_counter': No value provided. Use 'true' or 'false'.")
 		return
@@ -43,7 +43,7 @@ func handleEnableCounter(args []string, client *ads.Client) {
 // Usage: enable_toggle <true|false>
 func handleEnableToggle(args []string, client *ads.Client) {
 	data := "GLOBAL.gBoolToggleActive"
-	var port uint16 = 350
+	var port uint16 = 852
 	if len(args) == 0 {
 		fmt.Println("[ERROR] Command 'enable_toggle': No value provided. Use 'true' or 'false'.")
 		return
@@ -74,7 +74,7 @@ func handleEnableToggle(args []string, client *ads.Client) {
 // Usage: enable_timed_counter <true|false>
 func handleEnableTimedCounter(args []string, client *ads.Client) {
 	data := "GLOBAL.gTimedCounterActive"
-	var port uint16 = 350
+	var port uint16 = 852
 	if len(args) == 0 {
 		fmt.Println("[ERROR] Command 'enable_timed_counter': No value provided. Use 'true' or 'false'.")
 		return
@@ -105,7 +105,7 @@ func handleEnableTimedCounter(args []string, client *ads.Client) {
 // Usage: enable_timed_toggle <true|false>
 func handleEnableTimedToggle(args []string, client *ads.Client) {
 	data := "GLOBAL.gTimedToggleActive"
-	var port uint16 = 350
+	var port uint16 = 852
 	if len(args) == 0 {
 		fmt.Println("[ERROR] Command 'enable_timed_toggle': No value provided. Use 'true' or 'false'.")
 		return
@@ -135,7 +135,7 @@ func handleEnableTimedToggle(args []string, client *ads.Client) {
 // handleReadCounters reads all counter and toggle values.
 // Usage: read_counters
 func handleReadCounters(args []string, client *ads.Client) {
-	var port uint16 = 350
+	var port uint16 = 852
 
 	// List of variables to read
 	vars := []string{
@@ -159,7 +159,7 @@ func handleReadCounters(args []string, client *ads.Client) {
 // handleResetCounters resets all counters and toggles to their initial values.
 // Usage: reset_counters
 func handleResetCounters(args []string, client *ads.Client) {
-	var port uint16 = 350
+	var port uint16 = 852
 
 	// Reset cycle-based counter
 	if err := client.WriteValue(port, "GLOBAL.gMyIntCounter", 0); err != nil {
@@ -191,7 +191,7 @@ func handleResetCounters(args []string, client *ads.Client) {
 // handleReadStatus reads the status of all enable flags.
 // Usage: read_status
 func handleReadStatus(args []string, client *ads.Client) {
-	var port uint16 = 350
+	var port uint16 = 852
 
 	// List of enable flags to read
 	flags := []string{
@@ -220,7 +220,7 @@ func handleReadStatus(args []string, client *ads.Client) {
 // Usage: set_period <seconds>
 func handleSetCyclePeriod(args []string, client *ads.Client) {
 	data := "GLOBAL.gCyclePeriod"
-	var port uint16 = 350
+	var port uint16 = 852
 
 	if len(args) == 0 {
 		fmt.Println("[ERROR] Command 'set_period': No value provided. Specify period in seconds (e.g., '2' for 2 seconds).")
@@ -253,7 +253,7 @@ func handleSetCyclePeriod(args []string, client *ads.Client) {
 // Usage: read_period
 func handleReadCyclePeriod(args []string, client *ads.Client) {
 	data := "GLOBAL.gCyclePeriod"
-	var port uint16 = 350
+	var port uint16 = 852
 
 	value, err := client.ReadValue(port, data)
 	if err != nil {

@@ -11,7 +11,7 @@ import (
 func handleReadRaw(args []string, client *ads.Client) {
 	indexGroup := uint32(0x1010290)
 	indexOffset := uint32(0x80000001)
-	var port uint16 = 350
+	var port uint16 = 852
 	size := uint32(1) // adjust size as needed
 	result, err := client.ReadRaw(port, indexGroup, indexOffset, size)
 	if err != nil {
@@ -26,7 +26,7 @@ func handleReadRaw(args []string, client *ads.Client) {
 func handleWriteRaw(args []string, client *ads.Client) {
 	indexGroup := uint32(0x1010290)
 	indexOffset := uint32(0x80000001)
-	var port uint16 = 350
+	var port uint16 = 852
 	data := []byte{36}
 	err := client.WriteRaw(port, indexGroup, indexOffset, data)
 	if err != nil {

@@ -12,7 +12,7 @@ import (
 // Usage: write_value <number>
 func handleWriteValue(args []string, client *ads.Client) {
 	data := "GLOBAL.gMyInt"
-	var port uint16 = 350
+	var port uint16 = 852
 	if len(args) == 0 {
 		fmt.Println("[ERROR] Command 'write_value': No value provided to write.")
 		return
@@ -39,7 +39,7 @@ func handleWriteValue(args []string, client *ads.Client) {
 // Usage: write_bool <true|false>
 func handleWriteBool(args []string, client *ads.Client) {
 	data := "GLOBAL.gMyBool"
-	var port uint16 = 350
+	var port uint16 = 852
 	if len(args) == 0 {
 		fmt.Println("[ERROR] Command 'write_bool': No value provided to write.")
 		return
@@ -66,7 +66,7 @@ func handleWriteBool(args []string, client *ads.Client) {
 // Usage: write_object Counter=<int> Ready=<true|false>
 func handleWriteObject(args []string, client *ads.Client) {
 	data := "GLOBAL.gMyDUT"
-	var port uint16 = 350
+	var port uint16 = 852
 	fields := map[string]string{}
 	for _, arg := range args {
 		parts := strings.SplitN(arg, "=", 2)
@@ -122,7 +122,7 @@ func handleWriteObject(args []string, client *ads.Client) {
 // Usage: write_array <int1> <int2> <int3> <int4> <int5>
 func handleWriteArray(args []string, client *ads.Client) {
 	data := "GLOBAL.gIntArray"
-	var port uint16 = 350
+	var port uint16 = 852
 	if len(args) != 5 {
 		fmt.Printf("[ERROR] Command 'write_array': You must provide exactly 5 elements to write to the array. Got %d.\n", len(args))
 		return

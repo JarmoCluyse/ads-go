@@ -51,7 +51,7 @@ func createSubscriptionCallback(id int, path string) ads.SubscriptionCallback {
 // If path is not provided, uses a hardcoded test variable.
 func handleSubscribe(args []string, client *ads.Client) {
 	// Hardcoded test configuration
-	var port uint16 = 350
+	var port uint16 = 852
 	path := "GLOBAL.gMyBoolToogle"
 
 	// Allow optional path override
@@ -210,7 +210,7 @@ func handleUnsubscribeAll(args []string, client *ads.Client) {
 // handleSubCounter subscribes to the cycle-based counter (gMyIntCounter).
 // Usage: sub_counter
 func handleSubCounter(args []string, client *ads.Client) {
-	var port uint16 = 350
+	var port uint16 = 852
 	path := "GLOBAL.gMyIntCounter"
 
 	settings := ads.SubscriptionSettings{
@@ -241,7 +241,7 @@ func handleSubCounter(args []string, client *ads.Client) {
 // handleSubToggle subscribes to the cycle-based toggle (gMyBoolToogle).
 // Usage: sub_toggle
 func handleSubToggle(args []string, client *ads.Client) {
-	var port uint16 = 350
+	var port uint16 = 852
 	path := "GLOBAL.gMyBoolToogle"
 
 	settings := ads.SubscriptionSettings{
@@ -272,7 +272,7 @@ func handleSubToggle(args []string, client *ads.Client) {
 // handleSubTimedCounter subscribes to the time-based counter (gTimedIntCounter).
 // Usage: sub_timed_counter
 func handleSubTimedCounter(args []string, client *ads.Client) {
-	var port uint16 = 350
+	var port uint16 = 852
 	path := "GLOBAL.gTimedIntCounter"
 
 	settings := ads.SubscriptionSettings{
@@ -303,7 +303,7 @@ func handleSubTimedCounter(args []string, client *ads.Client) {
 // handleSubTimedToggle subscribes to the time-based toggle (gTimedBoolToogle).
 // Usage: sub_timed_toggle
 func handleSubTimedToggle(args []string, client *ads.Client) {
-	var port uint16 = 350
+	var port uint16 = 852
 	path := "GLOBAL.gTimedBoolToogle"
 
 	settings := ads.SubscriptionSettings{
@@ -334,7 +334,7 @@ func handleSubTimedToggle(args []string, client *ads.Client) {
 // handleSubAll subscribes to all counters and toggles at once.
 // Usage: sub_all
 func handleSubAll(args []string, client *ads.Client) {
-	var port uint16 = 350
+	var port uint16 = 852
 
 	// Variables to subscribe to
 	variables := []struct {

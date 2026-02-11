@@ -64,26 +64,34 @@ func handleStateLoop(args []string, client *ads.Client) {
 	}
 }
 
-// handleToConfig sets the TwinCAT system to Config state.
-// Usage: toConfig
-func handleToConfig(args []string, client *ads.Client) {
-	err := client.SetTcSystemToConfig()
-	if err != nil {
-		fmt.Printf("[ERROR] Command 'toConfig': Failed to set TwinCAT to Config state: %v\n", err)
+// handleSetState sets the TwinCAT system state.
+// Usage: set_state <config|run>
+func handleSetState(args []string, client *ads.Client) {
+	if len(args) == 0 {
+		fmt.Println("[ERROR] Command 'set_state': No state provided. Use 'config' or 'run'.")
 		return
 	}
-	fmt.Println("[OK] TwinCAT system set to Config state.")
-}
 
-// handleToRun sets the TwinCAT system to Run state.
-// Usage: toRun
-func handleToRun(args []string, client *ads.Client) {
-	err := client.SetTcSystemToRun()
-	if err != nil {
-		fmt.Printf("[ERROR] Command 'toRun': Failed to set TwinCAT to Run state: %v\n", err)
-		return
+	state := args[0]
+
+	switch state {
+	case "config":
+		err := client.SetTcSystemToConfig()
+		if err != nil {
+			fmt.Printf("[ERROR] Command 'set_state': Failed to set TwinCAT to Config state: %v\n", err)
+			return
+		}
+		fmt.Println("[OK] TwinCAT system set to Config state.")
+	case "run":
+		err := client.SetTcSystemToRun()
+		if err != nil {
+			fmt.Printf("[ERROR] Command 'set_state': Failed to set TwinCAT to Run state: %v\n", err)
+			return
+		}
+		fmt.Println("[OK] TwinCAT system set to Run state.")
+	default:
+		fmt.Printf("[ERROR] Command 'set_state': Invalid state '%s'. Use 'config' or 'run'.\n", state)
 	}
-	fmt.Println("[OK] TwinCAT system set to Run state.")
 }
 
 // handleMonitor displays current TwinCAT state and information about background monitoring.

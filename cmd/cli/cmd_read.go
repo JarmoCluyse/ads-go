@@ -9,7 +9,7 @@ import (
 // handleReadValue reads a generic value from the PLC.
 // Usage: read_value
 func handleReadValue(args []string, client *ads.Client) {
-	data := "service_interface.input.in_servicetool_serviceint_cmd"
+	data := "GLOBAL.gMyInt"
 	var port uint16 = 350
 	value, err := client.ReadValue(port, data)
 	if err != nil {
@@ -22,7 +22,7 @@ func handleReadValue(args []string, client *ads.Client) {
 // handleReadBool reads a boolean value from the PLC.
 // Usage: read_bool
 func handleReadBool(args []string, client *ads.Client) {
-	data := "Service_interface.Input.IN_MAIN_SERVICEINT_ENABLE"
+	data := "GLOBAL.gMyBool"
 	var port uint16 = 350
 	value, err := client.ReadValue(port, data)
 	if err != nil {
@@ -35,7 +35,7 @@ func handleReadBool(args []string, client *ads.Client) {
 // handleReadObject reads a structured object from the PLC.
 // Usage: read_object
 func handleReadObject(args []string, client *ads.Client) {
-	data := "Service_interface.Input.IN_busInfo_Main.busPosInit"
+	data := "GLOBAL.gMyDUT"
 	var port uint16 = 350
 	value, err := client.ReadValue(port, data)
 	if err != nil {
@@ -48,7 +48,7 @@ func handleReadObject(args []string, client *ads.Client) {
 // handleReadArray reads an array from the PLC.
 // Usage: read_array
 func handleReadArray(args []string, client *ads.Client) {
-	data := "Service_interface.Service_interface_DW_DS_CMDPARAMS.DS_CMDPARAMS.arrParams"
+	data := "GLOBAL.gIntArray"
 	var port uint16 = 350
 	value, err := client.ReadValue(port, data)
 	if err != nil {

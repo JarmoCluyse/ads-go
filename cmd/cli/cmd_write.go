@@ -11,7 +11,7 @@ import (
 // handleWriteValue writes a numeric value to the PLC.
 // Usage: write_value <number>
 func handleWriteValue(args []string, client *ads.Client) {
-	data := "service_interface.input.in_servicetool_serviceint_cmd"
+	data := "GLOBAL.gMyInt"
 	var port uint16 = 350
 	if len(args) == 0 {
 		fmt.Println("[ERROR] Command 'write_value': No value provided to write.")
@@ -38,7 +38,7 @@ func handleWriteValue(args []string, client *ads.Client) {
 // handleWriteBool writes a boolean value to the PLC.
 // Usage: write_bool <true|false>
 func handleWriteBool(args []string, client *ads.Client) {
-	data := "Service_interface.Input.IN_MAIN_SERVICEINT_ENABLE"
+	data := "GLOBAL.gMyBool"
 	var port uint16 = 350
 	if len(args) == 0 {
 		fmt.Println("[ERROR] Command 'write_bool': No value provided to write.")
@@ -63,9 +63,9 @@ func handleWriteBool(args []string, client *ads.Client) {
 }
 
 // handleWriteObject writes a structured object to the PLC.
-// Usage: write_object Ln=<int> Lv=<int> PosX=<int> PosY=<int> PosZ=<int> Sct=<int> cntrNewTryLock=<int> flgForce=<true|false>
+// Usage: write_object Counter=<int> Ready=<true|false>
 func handleWriteObject(args []string, client *ads.Client) {
-	data := "Service_interface.Input.IN_busInfo_Main.busPosInit"
+	data := "GLOBAL.gMyDUT"
 	var port uint16 = 350
 	fields := map[string]string{}
 	for _, arg := range args {
@@ -78,37 +78,39 @@ func handleWriteObject(args []string, client *ads.Client) {
 	}
 	// Define expected fields and types
 	object := map[string]any{}
-	for _, name := range []string{"Ln", "Lv", "PosX", "PosY", "PosZ", "Sct", "cntrNewTryLock"} {
-		valStr, ok := fields[name]
-		if !ok {
-			fmt.Printf("[ERROR] Command 'write_object': Missing required field '%s'.\n", name)
-			return
-		}
-		valInt, err := strconv.Atoi(valStr)
-		if err != nil {
-			fmt.Printf("[ERROR] Command 'write_object': Field '%s' must be an integer, got '%s'.\n", name, valStr)
-			return
-		}
-		object[name] = valInt
-	}
-	// Handle flgForce (bool)
-	flgForceStr, ok := fields["flgForce"]
+
+	// Handle Counter (int)
+	counterStr, ok := fields["Counter"]
 	if !ok {
-		fmt.Println("[ERROR] Command 'write_object': Missing required field 'flgForce'.")
+		fmt.Println("[ERROR] Command 'write_object': Missing required field 'Counter'.")
 		return
 	}
-	var flgForce bool
-	switch flgForceStr {
+	counterVal, err := strconv.Atoi(counterStr)
+	if err != nil {
+		fmt.Printf("[ERROR] Command 'write_object': Field 'Counter' must be an integer, got '%s'.\n", counterStr)
+		return
+	}
+	object["Counter"] = counterVal
+
+	// Handle Ready (bool)
+	readyStr, ok := fields["Ready"]
+	if !ok {
+		fmt.Println("[ERROR] Command 'write_object': Missing required field 'Ready'.")
+		return
+	}
+	var readyVal bool
+	switch strings.ToLower(readyStr) {
 	case "true":
-		flgForce = true
+		readyVal = true
 	case "false":
-		flgForce = false
+		readyVal = false
 	default:
-		fmt.Println("[ERROR] Command 'write_object': flgForce must be 'true' or 'false'.")
+		fmt.Println("[ERROR] Command 'write_object': Ready must be 'true' or 'false'.")
 		return
 	}
-	object["flgForce"] = flgForce
-	err := client.WriteValue(port, data, object)
+	object["Ready"] = readyVal
+
+	err = client.WriteValue(port, data, object)
 	if err != nil {
 		fmt.Printf("[ERROR] Command 'write_object': Failed to write object to '%s' (port %d): %v\n", data, port, err)
 		return
@@ -117,16 +119,16 @@ func handleWriteObject(args []string, client *ads.Client) {
 }
 
 // handleWriteArray writes an array of integers to the PLC.
-// Usage: write_array <int1> <int2> <int3> <int4> <int5> <int6> <int7> <int8> <int9> <int10>
+// Usage: write_array <int1> <int2> <int3> <int4> <int5>
 func handleWriteArray(args []string, client *ads.Client) {
-	data := "Service_interface.Service_interface_DW_DS_CMDPARAMS.DS_CMDPARAMS.arrParams"
+	data := "GLOBAL.gIntArray"
 	var port uint16 = 350
-	if len(args) != 10 {
-		fmt.Printf("[ERROR] Command 'write_array': You must provide exactly 10 elements to write to the array. Got %d.\n", len(args))
+	if len(args) != 5 {
+		fmt.Printf("[ERROR] Command 'write_array': You must provide exactly 5 elements to write to the array. Got %d.\n", len(args))
 		return
 	}
-	arr := make([]int, 10)
-	for i := range 10 {
+	arr := make([]int, 5)
+	for i := range 5 {
 		val, err := strconv.Atoi(args[i])
 		if err != nil {
 			fmt.Printf("[ERROR] Command 'write_array': Argument %d ('%s') is not a valid integer.\n", i+1, args[i])

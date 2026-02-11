@@ -19,8 +19,7 @@ func getHandlers() map[string]CommandHandler {
 		"state":       handleState,
 		"state_loop":  handleStateLoop,
 		"monitor":     handleMonitor,
-		"toConfig":    handleToConfig,
-		"toRun":       handleToRun,
+		"set_state":   handleSetState,
 
 		// Read commands (cmd_read.go)
 		"read_value":  handleReadValue,
@@ -43,6 +42,24 @@ func getHandlers() map[string]CommandHandler {
 		"list_subs":       handleListSubs,
 		"unsubscribe":     handleUnsubscribe,
 		"unsubscribe_all": handleUnsubscribeAll,
+
+		// Subscription shortcuts (cmd_subscriptions.go)
+		"sub_counter":       handleSubCounter,
+		"sub_toggle":        handleSubToggle,
+		"sub_timed_counter": handleSubTimedCounter,
+		"sub_timed_toggle":  handleSubTimedToggle,
+		"sub_all":           handleSubAll,
+
+		// Control commands (cmd_control.go)
+		"enable_counter":       handleEnableCounter,
+		"enable_toggle":        handleEnableToggle,
+		"enable_timed_counter": handleEnableTimedCounter,
+		"enable_timed_toggle":  handleEnableTimedToggle,
+		"read_counters":        handleReadCounters,
+		"reset_counters":       handleResetCounters,
+		"read_status":          handleReadStatus,
+		"set_period":           handleSetCyclePeriod,
+		"read_period":          handleReadCyclePeriod,
 
 		// Utility commands (cmd_util.go)
 		"help": handleHelp,

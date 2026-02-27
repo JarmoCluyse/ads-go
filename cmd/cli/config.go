@@ -11,7 +11,7 @@ const (
 	DefaultAdsTargetNetID = "192.168.157.131.1.1"
 	DefaultAdsTargetPort  = 350
 	DefaultAdsRouterAddr  = "127.0.0.1:48898"
-	DefaultAdsTimeout     = 5 * time.Second
+	DefaultAdsTimeout     = 2 * time.Second
 )
 
 func GetConfig() ads.ClientSettings {

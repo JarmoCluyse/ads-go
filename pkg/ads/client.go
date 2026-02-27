@@ -20,24 +20,25 @@ type Response struct {
 
 // Client represents an ADS client.
 type Client struct {
-	conn                   net.Conn                       // tcp connection
-	settings               ClientSettings                 // client settings
-	mutex                  sync.Mutex                     // mutex for invoke id and request map
-	invokeID               uint32                         // last used invoke id
-	requests               map[uint32]chan Response       // channel map to write the responses to
-	localAmsAddr           AmsAddress                     // local asigned ams adres
-	receiveBuffer          bytes.Buffer                   // Buffer for incoming data
-	logger                 *slog.Logger                   // logger
-	subscriptions          map[uint32]*ActiveSubscription // active subscriptions map[notificationHandle]subscription
-	subscriptionsMutex     sync.RWMutex                   // mutex for subscriptions map
-	currentState           *adsstateinfo.SystemState      // current cached TwinCAT system state
-	stateMutex             sync.RWMutex                   // protects currentState
-	statePollerTimer       *time.Timer                    // state polling timer
-	statePollerID          int                            // unique poller ID to prevent multiple timers
-	statePollerMutex       sync.Mutex                     // protects timer operations
-	extendedStateSupported *bool                          // nil = unknown, true/false = tested
-	lastRestartIndex       *uint16                        // last seen restart index (nil if not yet read or not supported)
-	extendedStateMutex     sync.RWMutex                   // protects extended state fields
+	conn                    net.Conn                       // tcp connection
+	settings                ClientSettings                 // client settings
+	mutex                   sync.Mutex                     // mutex for invoke id and request map
+	invokeID                uint32                         // last used invoke id
+	requests                map[uint32]chan Response       // channel map to write the responses to
+	localAmsAddr            AmsAddress                     // local asigned ams adres
+	receiveBuffer           bytes.Buffer                   // Buffer for incoming data
+	logger                  *slog.Logger                   // logger
+	subscriptions           map[uint32]*ActiveSubscription // active subscriptions map[notificationHandle]subscription
+	subscriptionsMutex      sync.RWMutex                   // mutex for subscriptions map
+	currentState            *adsstateinfo.SystemState      // current cached TwinCAT system state
+	stateMutex              sync.RWMutex                   // protects currentState
+	statePollerTimer        *time.Timer                    // state polling timer
+	statePollerID           int                            // unique poller ID to prevent multiple timers
+	statePollerMutex        sync.Mutex                     // protects timer operations
+	extendedStateSupported  *bool                          // nil = unknown, true/false = tested
+	lastRestartIndex        *uint16                        // last seen restart index (nil if not yet read or not supported)
+	extendedStateMutex      sync.RWMutex                   // protects extended state fields
+	consecutiveReadFailures int                            // number of consecutive state read failures
 }
 
 // ClientSettings holds the settings for the ADS client.
@@ -76,6 +77,12 @@ type ClientSettings struct {
 	// The state poller runs in the background and detects when TwinCAT changes state
 	// (e.g., Run→Config, Config→Run). When state leaves Run mode, OnConnectionLost is triggered.
 	StatePollingInterval time.Duration
+
+	// MaxConsecutiveReadFailures is how many consecutive state read failures must occur
+	// before OnConnectionLost is triggered (default: 2). This tolerates a single transient
+	// glitch without declaring the connection lost.
+	// Set to 1 to trigger OnConnectionLost on the first failure.
+	MaxConsecutiveReadFailures int
 }
 
 // LoadDefaults sets the default values for any unset ClientSettings fields.
@@ -94,6 +101,9 @@ func (cs *ClientSettings) LoadDefaults() {
 	}
 	if cs.StatePollingInterval == 0 {
 		cs.StatePollingInterval = 2 * time.Second
+	}
+	if cs.MaxConsecutiveReadFailures == 0 {
+		cs.MaxConsecutiveReadFailures = 1
 	}
 }
 

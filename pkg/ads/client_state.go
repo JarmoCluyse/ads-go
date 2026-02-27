@@ -89,27 +89,30 @@ func (c *Client) checkState(pollerID int) {
 	var newRestartIndex *uint16
 
 	// Try to read extended state if supported or unknown
+	readErr := error(nil)
 	if extendedSupported == nil || *extendedSupported {
 		extState, err := c.ReadTcSystemExtendedState()
 		if err != nil {
-			// If extended state is unknown, mark it as not supported
-			if extendedSupported == nil {
+			if extendedSupported != nil && *extendedSupported {
+				// Extended state is confirmed supported — failure means remote is unreachable,
+				// don't waste another timeout on basic state fallback
+				readErr = err
+			} else {
+				// Extended state support is unknown — failure may mean not supported,
+				// fall back to basic state to find out
 				c.logger.Info("checkState: Extended state not supported, falling back to basic state")
 				notSupported := false
 				c.extendedStateMutex.Lock()
 				c.extendedStateSupported = &notSupported
 				c.extendedStateMutex.Unlock()
-			}
 
-			// Fall back to basic state
-			basicState, err := c.ReadTcSystemState()
-			if err != nil {
-				c.logger.Warn("checkState: Failed to read system state", "error", err)
-				// Schedule next check even if this one failed
-				c.scheduleNextStateCheck(pollerID)
-				return
+				basicState, err := c.ReadTcSystemState()
+				if err != nil {
+					readErr = err
+				} else {
+					newState = basicState
+				}
 			}
-			newState = basicState
 		} else {
 			// Extended state read successfully
 			if extendedSupported == nil {
@@ -136,13 +139,36 @@ func (c *Client) checkState(pollerID int) {
 		// Extended state not supported, use basic state
 		basicState, err := c.ReadTcSystemState()
 		if err != nil {
-			c.logger.Warn("checkState: Failed to read system state", "error", err)
-			// Schedule next check even if this one failed
-			c.scheduleNextStateCheck(pollerID)
-			return
+			readErr = err
+		} else {
+			newState = basicState
 		}
-		newState = basicState
 	}
+
+	// Handle read failure with consecutive failure counter
+	if readErr != nil {
+		c.consecutiveReadFailures++
+		c.logger.Warn("checkState: Failed to read system state",
+			"error", readErr,
+			"consecutiveFailures", c.consecutiveReadFailures,
+			"maxFailures", c.settings.MaxConsecutiveReadFailures)
+
+		if c.consecutiveReadFailures >= c.settings.MaxConsecutiveReadFailures {
+			count := c.consecutiveReadFailures
+			c.consecutiveReadFailures = 0
+			c.logger.Warn("checkState: Consecutive failure limit reached, triggering connection lost",
+				"consecutiveFailures", count)
+			c.invokeConnectionLostHook(fmt.Errorf("remote target unreachable after %d consecutive failures: %w", count, readErr))
+			return // Don't reschedule — let reconnect restart the poller
+		}
+
+		// Still within tolerance — keep polling at normal interval
+		c.scheduleNextStateCheck(pollerID)
+		return
+	}
+
+	// Successful read — reset failure counter
+	c.consecutiveReadFailures = 0
 
 	// Update the cached state
 	c.stateMutex.Lock()
@@ -168,9 +194,7 @@ func (c *Client) checkState(pollerID int) {
 				"state", newState.AdsState.String())
 
 			// Don't schedule next check - let reconnection handle it
-			go c.invokeHook("OnConnectionLost", func() {
-				c.settings.OnConnectionLost(c, fmt.Errorf("TwinCAT state changed to %s (not Run)", newState.AdsState.String()))
-			})
+			c.invokeConnectionLostHook(fmt.Errorf("TwinCAT state changed to %s (not Run)", newState.AdsState.String()))
 			return
 		}
 	} else if newRestartIndex != nil && oldRestartIndex != nil && *newRestartIndex != *oldRestartIndex {
@@ -185,9 +209,7 @@ func (c *Client) checkState(pollerID int) {
 
 		// Trigger connection lost to allow user to re-read values and re-subscribe
 		// Don't schedule next check - let user handle reconnection in hook
-		go c.invokeHook("OnConnectionLost", func() {
-			c.settings.OnConnectionLost(c, fmt.Errorf("TwinCAT system restarted (restart index: %d → %d)", *oldRestartIndex, *newRestartIndex))
-		})
+		c.invokeConnectionLostHook(fmt.Errorf("TwinCAT system restarted (restart index: %d → %d)", *oldRestartIndex, *newRestartIndex))
 		return
 	}
 
@@ -195,7 +217,7 @@ func (c *Client) checkState(pollerID int) {
 	c.scheduleNextStateCheck(pollerID)
 }
 
-// scheduleNextStateCheck schedules the next state check if the poller is still valid.
+// scheduleNextStateCheck schedules the next state check after the configured polling interval.
 func (c *Client) scheduleNextStateCheck(pollerID int) {
 	c.statePollerMutex.Lock()
 	defer c.statePollerMutex.Unlock()
@@ -211,6 +233,17 @@ func (c *Client) scheduleNextStateCheck(pollerID int) {
 
 	c.statePollerTimer = time.AfterFunc(c.settings.StatePollingInterval, func() {
 		c.checkState(pollerID)
+	})
+}
+
+// invokeConnectionLostHook clears the cached state and calls the OnConnectionLost hook.
+func (c *Client) invokeConnectionLostHook(err error) {
+	c.stateMutex.Lock()
+	c.currentState = nil
+	c.stateMutex.Unlock()
+
+	go c.invokeHook("OnConnectionLost", func() {
+		c.settings.OnConnectionLost(c, err)
 	})
 }
 

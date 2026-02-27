@@ -37,8 +37,7 @@ Basic connection and read/write example:
 	func main() {
 		// Create client
 		client := ads.NewClient(ads.ClientSettings{
-			TargetAmsNetId: "192.168.1.120.1.1",
-			TargetAdsPort:  851,
+			TargetNetID: "192.168.1.120.1.1",
 		}, nil)
 
 		// Connect
@@ -68,26 +67,21 @@ The client supports multiple connection modes depending on your environment.
 Setup 1 - Windows with TwinCAT Router installed:
 
 	client := ads.NewClient(ads.ClientSettings{
-		TargetAmsNetId: "192.168.1.120.1.1",
-		TargetAdsPort:  851,
+		TargetNetID: "192.168.1.120.1.1",
 	}, nil)
 
 Setup 2 - Direct connection from any system (Linux, Raspberry Pi, etc.):
 
 	client := ads.NewClient(ads.ClientSettings{
-		LocalAmsNetId:  "192.168.1.10.1.1",  // Your system's AmsNetId
-		LocalAdsPort:   32750,                // Any unused port
-		TargetAmsNetId: "192.168.1.120.1.1", // PLC's AmsNetId
-		TargetAdsPort:  851,
-		RouterAddress:  "192.168.1.120",     // PLC's IP address
-		RouterTcpPort:  48898,                // ADS router port
+		TargetNetID: "192.168.1.120.1.1", // PLC's AmsNetId
+		RouterAddr:  "192.168.1.120",     // PLC's IP address
+		RouterPort:  48898,                // ADS router port
 	}, nil)
 
 Setup 3 - Localhost connection:
 
 	client := ads.NewClient(ads.ClientSettings{
-		TargetAmsNetId: "127.0.0.1.1.1", // or "localhost"
-		TargetAdsPort:  851,
+		TargetNetID: "127.0.0.1.1.1", // or "localhost"
 	}, nil)
 
 For direct connections, you need to configure a static route on the target PLC.
@@ -266,8 +260,7 @@ Control the PLC runtime state:
 The client can automatically monitor TwinCAT system state changes and detect restarts:
 
 	settings := ads.ClientSettings{
-		TargetAmsNetId: "localhost",
-		TargetAdsPort:  851,
+		TargetNetID: "localhost",
 
 		// Called when state changes (Run ↔ Config ↔ Stop)
 		OnStateChange: func(client *ads.Client, newState, oldState *adsstateinfo.SystemState) {
@@ -327,7 +320,7 @@ Read information about the target device:
 	fmt.Printf("Version: %d.%d.%d\n",
 		info.MajorVersion,
 		info.MinorVersion,
-		info.BuildVersion)
+		info.VersionBuild)
 
 # Data Types
 
@@ -396,8 +389,7 @@ When connecting to TwinCAT 2 systems, note these differences:
 1. PLC runtime ADS port is 801 instead of 851:
 
 	client := ads.NewClient(ads.ClientSettings{
-		TargetAmsNetId: "192.168.1.120.1.1",
-		TargetAdsPort:  801, // TwinCAT 2
+		TargetNetID: "192.168.1.120.1.1",
 	}, nil)
 
 2. All variable and data type names are UPPERCASE:

@@ -127,8 +127,7 @@ import (
 func main() {
 	// Create client
 	client := ads.NewClient(ads.ClientSettings{
-		TargetAmsNetId: "localhost",
-		TargetAdsPort:  851,
+		TargetNetID: "localhost",
 	}, nil)
 
 	// Connect
@@ -184,8 +183,7 @@ This is the most common scenario. The client is running on a Windows PC that has
 
 ```go
 client := ads.NewClient(ads.ClientSettings{
-	TargetAmsNetId: "192.168.1.120.1.1", // AmsNetId of the target PLC
-	TargetAdsPort:  851,
+	TargetNetID: "192.168.1.120.1.1", // AmsNetId of the target PLC
 }, nil)
 ```
 
@@ -202,8 +200,7 @@ In this scenario, the client is running on Linux or Windows without TwinCAT Rout
 
 ```go
 client := ads.NewClient(ads.ClientSettings{
-	TargetAmsNetId: "192.168.1.120.1.1", // AmsNetId of the target PLC
-	TargetAdsPort:  851,
+	TargetNetID: "192.168.1.120.1.1", // AmsNetId of the target PLC
 }, nil)
 ```
 
@@ -244,12 +241,9 @@ In this setup, the client directly connects to the PLC and uses its TwinCAT rout
 
 ```go
 client := ads.NewClient(ads.ClientSettings{
-	LocalAmsNetId:  "192.168.1.10.1.1",  // Same as NetId in StaticRoutes.xml
-	LocalAdsPort:   32750,                // Can be anything that is not used
-	TargetAmsNetId: "192.168.1.120.1.1", // AmsNetId of the target PLC
-	TargetAdsPort:  851,
-	RouterAddress:  "192.168.1.120",     // PLC IP address
-	RouterTcpPort:  48898,
+	TargetNetID: "192.168.1.120.1.1", // AmsNetId of the target PLC
+	RouterAddr:  "192.168.1.120",     // PLC IP address
+	RouterPort:  48898,
 }, nil)
 ```
 
@@ -265,8 +259,7 @@ In this scenario, the PLC is running the Go app locally. For example, the develo
 
 ```go
 client := ads.NewClient(ads.ClientSettings{
-	TargetAmsNetId: "127.0.0.1.1.1", // or "localhost"
-	TargetAdsPort:  851,
+	TargetNetID: "127.0.0.1.1.1", // or "localhost"
 }, nil)
 ```
 
@@ -300,7 +293,7 @@ TwinCAT 4024.5 and newer already have this enabled as default.
 
 ![Registry Setting](https://user-images.githubusercontent.com/13457157/82748398-2640bf00-9daa-11ea-98e5-0032b3537969.png)
 
-Now you can connect to localhost using `TargetAmsNetId` address of `127.0.0.1.1.1` or `localhost`.
+Now you can connect to localhost using `TargetNetID` address of `127.0.0.1.1.1` or `localhost`.
 
 ## Structured variables
 
@@ -329,8 +322,7 @@ If there are multiple properties with the same name (case-insensitive), the beha
 
 ```go
 client := ads.NewClient(ads.ClientSettings{
-	TargetAmsNetId: "192.168.1.120.1.1",
-	TargetAdsPort:  801, // TwinCAT 2
+	TargetNetID: "192.168.1.120.1.1",
 }, nil)
 ```
 
@@ -390,13 +382,12 @@ Complete working examples can be found in `cmd/main.go` and `example/` directory
 ## Creating a Client
 
 Settings are passed via the `ClientSettings` struct. The following settings are mandatory:
-- `TargetAmsNetId` - Target runtime AmsNetId
-- `TargetAdsPort` - Target runtime ADS port
+- `TargetNetID` - Target runtime AmsNetId (required)
+- `RouterAddr` - ADS router address (optional, defaults to 127.0.0.1:48898)
 
 ```go
 client := ads.NewClient(ads.ClientSettings{
-	TargetAmsNetId: "localhost",
-	TargetAdsPort:  851,
+	TargetNetID: "localhost",
 }, nil)
 ```
 
@@ -410,8 +401,7 @@ logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
 }))
 
 client := ads.NewClient(ads.ClientSettings{
-	TargetAmsNetId: "localhost",
-	TargetAdsPort:  851,
+	TargetNetID: "localhost",
 }, logger)
 ```
 
@@ -431,8 +421,7 @@ import (
 
 func main() {
 	client := ads.NewClient(ads.ClientSettings{
-		TargetAmsNetId: "localhost",
-		TargetAdsPort:  851,
+		TargetNetID: "localhost",
 	}, nil)
 
 	if err := client.Connect(); err != nil {
@@ -1004,8 +993,7 @@ Called whenever the TwinCAT system state changes:
 
 ```go
 settings := ads.ClientSettings{
-	TargetAmsNetId: "localhost",
-	TargetAdsPort:  851,
+	TargetNetID: "localhost",
 	
 	// Called on state changes
 	OnStateChange: func(client *ads.Client, newState, oldState *adsstateinfo.SystemState) {
@@ -1036,8 +1024,7 @@ Called when the connection is lost unexpectedly or TwinCAT restarts:
 
 ```go
 settings := ads.ClientSettings{
-	TargetAmsNetId: "localhost",
-	TargetAdsPort:  851,
+	TargetNetID: "localhost",
 	
 	// Called when connection drops or TwinCAT restarts
 	OnConnectionLost: func(client *ads.Client, err error) {
@@ -1129,8 +1116,7 @@ Change the polling interval (default is 2 seconds):
 
 ```go
 settings := ads.ClientSettings{
-	TargetAmsNetId: "localhost",
-	TargetAdsPort:  851,
+	TargetNetID: "localhost",
 	
 	// Check state every 5 seconds
 	StatePollingInterval: 5 * time.Second,
@@ -1143,8 +1129,7 @@ client := ads.NewClient(settings, nil)
 
 ```go
 settings := ads.ClientSettings{
-	TargetAmsNetId: "localhost",
-	TargetAdsPort:  851,
+	TargetNetID: "localhost",
 	
 	// Disable automatic state monitoring
 	StatePollingInterval: 0,
@@ -1172,8 +1157,7 @@ import (
 
 func main() {
 	settings := ads.ClientSettings{
-		TargetAmsNetId: "localhost",
-		TargetAdsPort:  851,
+		TargetNetID: "localhost",
 		
 		// Monitor state changes
 		OnStateChange: func(client *ads.Client, newState, oldState *adsstateinfo.SystemState) {
@@ -1267,8 +1251,7 @@ import (
 
 func main() {
 	client := ads.NewClient(ads.ClientSettings{
-		TargetAmsNetId: "localhost",
-		TargetAdsPort:  851,
+		TargetNetID: "localhost",
 	}, nil)
 	
 	if err := client.Connect(); err != nil {
@@ -1471,8 +1454,7 @@ When TwinCAT restarts, all subscriptions are cleared. Use the `OnConnectionLost`
 var activeVars = []string{"GVL.Counter", "GVL.Temperature"}
 
 settings := ads.ClientSettings{
-	TargetAmsNetId: "localhost",
-	TargetAdsPort:  851,
+	TargetNetID: "localhost",
 	
 	// Re-subscribe after TwinCAT restart
 	OnConnectionLost: func(client *ads.Client, err error) {
@@ -1538,8 +1520,7 @@ func main() {
 	var subscriptions []*ads.ActiveSubscription
 	
 	settings := ads.ClientSettings{
-		TargetAmsNetId: "localhost",
-		TargetAdsPort:  851,
+		TargetNetID: "localhost",
 		
 		// Handle TwinCAT restarts
 		OnConnectionLost: func(client *ads.Client, err error) {
@@ -1745,7 +1726,7 @@ fmt.Printf("Device Name: %s\n", info.DeviceName)
 fmt.Printf("Version: %d.%d (Build %d)\n",
 	info.MajorVersion,
 	info.MinorVersion,
-	info.BuildVersion)
+	info.VersionBuild)
 
 /* Output:
 Device Name: PLC-1
@@ -1860,7 +1841,7 @@ func main() {
 ## Connecting to localhost not working
 
 **Symptoms:**
-- Cannot connect when using `TargetAmsNetId: "localhost"` or `"127.0.0.1.1.1"`
+- Cannot connect when using `TargetNetID: "localhost"` or `"127.0.0.1.1.1"`
 - Connection refused on local machine
 
 **Solutions:**
@@ -2105,6 +2086,7 @@ Or use the pre-built binary:
 - `read_bool` - Read `GLOBAL.gMyBool`
 - `read_object` - Read `GLOBAL.gMyDUT` (struct)
 - `read_array` - Read `GLOBAL.gIntArray`
+- `list_symbols` - List all available PLC symbols (first 100)
 - `write_value <int>` - Write integer to `GLOBAL.gMyInt`
 - `write_bool <true|false>` - Write boolean to `GLOBAL.gMyBool`
 - `write_object Counter=<int> Ready=<bool>` - Write to `GLOBAL.gMyDUT`

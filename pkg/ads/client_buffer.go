@@ -32,10 +32,7 @@ func (c *Client) receive() {
 			}
 
 			// Invoke OnConnectionLost hook asynchronously (fire-and-forget)
-			connectionErr := err
-			go c.invokeHook("OnConnectionLost", func() {
-				c.settings.OnConnectionLost(c, connectionErr)
-			})
+			c.invokeConnectionLostHook(err)
 
 			return // Exit goroutine on error or EOF
 		}

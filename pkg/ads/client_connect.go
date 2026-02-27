@@ -57,7 +57,10 @@ func (c *Client) Connect() error {
 		c.logger.Info("Connect: Initial TwinCAT state", "state", initialState.AdsState.String())
 
 		// Trigger OnStateChange hook for initial state (with oldState=nil)
-		c.invokeStateChangeHook(initialState, nil)
+		// Called synchronously so the caller sees the state before Connect() returns.
+		c.invokeHook("OnStateChange", func() {
+			c.settings.OnStateChange(c, initialState, nil)
+		})
 	}
 
 	// Start state poller if enabled
@@ -75,10 +78,11 @@ func (c *Client) Disconnect() error {
 		// Stop state monitoring
 		c.stopStatePoller()
 
-		// Clear cached state
+		// Clear cached state and failure counter
 		c.stateMutex.Lock()
 		c.currentState = nil
 		c.stateMutex.Unlock()
+		c.consecutiveReadFailures = 0
 
 		// Unsubscribe from all active subscriptions before disconnecting
 		if err := c.UnsubscribeAll(); err != nil {

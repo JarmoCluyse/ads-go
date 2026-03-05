@@ -44,8 +44,8 @@ type Client struct {
 // ClientSettings holds the settings for the ADS client.
 type ClientSettings struct {
 	TargetNetID string        // target ams net id (127.0.0.1.1.1 asumed if empty)
-	RouterAddr  string        // adres of the router (127.0.0.1 asumed if empty)
-	RouterPort  int           // port of the router (48898 asumed if empty)
+	RouterHost  string        // host of the router (127.0.0.1 assumed if empty)
+	RouterPort  int           // port of the router (48898 assumed if empty)
 	Timeout     time.Duration // message timeout (2s assumed if empty)
 
 	// Connection lifecycle hooks (optional)
@@ -87,11 +87,11 @@ type ClientSettings struct {
 
 // LoadDefaults sets the default values for any unset ClientSettings fields.
 func (cs *ClientSettings) LoadDefaults() {
-	if cs.TargetNetID == "" {
+	if cs.TargetNetID == "" || cs.TargetNetID == "localhost" {
 		cs.TargetNetID = "127.0.0.1.1.1"
 	}
-	if cs.RouterAddr == "" {
-		cs.RouterAddr = "127.0.0.1"
+	if cs.RouterHost == "" {
+		cs.RouterHost = "127.0.0.1"
 	}
 	if cs.RouterPort == 0 {
 		cs.RouterPort = 48898

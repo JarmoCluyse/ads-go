@@ -13,8 +13,9 @@ import (
 
 // Connect establishes a connection to the ADS router.
 func (c *Client) Connect() error {
-	c.logger.Debug("Connect: Attempting to connect to router", "routerAddr", c.settings.RouterAddr)
-	conn, err := net.DialTimeout("tcp", c.settings.RouterAddr, c.settings.Timeout)
+	dialAddr := fmt.Sprintf("%s:%d", c.settings.RouterHost, c.settings.RouterPort)
+	c.logger.Debug("Connect: Attempting to connect to router", "routerAddr", dialAddr)
+	conn, err := net.DialTimeout("tcp", dialAddr, c.settings.Timeout)
 	if err != nil {
 		c.logger.Error("Connect: Failed to dial router", "error", err)
 		return err

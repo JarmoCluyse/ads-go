@@ -14,7 +14,6 @@ import (
 
 const (
 	defaultTargetNetID = "192.168.157.131.1.1"
-	defaultRouterAddr  = "127.0.0.1:48898"
 	defaultTimeout     = 2 * time.Second
 )
 
@@ -28,7 +27,6 @@ func main() {
 
 	settings := ads.ClientSettings{
 		TargetNetID: defaultTargetNetID,
-		RouterAddr:  defaultRouterAddr,
 		Timeout:     defaultTimeout,
 	}
 

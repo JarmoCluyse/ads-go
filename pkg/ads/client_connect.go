@@ -4,6 +4,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"net"
+	"strconv"
 
 	amsbuilder "github.com/jarmocluyse/ads-go/pkg/ads/ams-builder"
 	"github.com/jarmocluyse/ads-go/pkg/ads/constants"
@@ -13,8 +14,9 @@ import (
 
 // Connect establishes a connection to the ADS router.
 func (c *Client) Connect() error {
-	c.logger.Debug("Connect: Attempting to connect to router", "routerAddr", c.settings.RouterAddr)
-	conn, err := net.DialTimeout("tcp", c.settings.RouterAddr, c.settings.Timeout)
+	dialAddr := net.JoinHostPort(c.settings.RouterHost, strconv.Itoa(c.settings.RouterPort))
+	c.logger.Debug("Connect: Attempting to connect to router", "routerAddr", dialAddr)
+	conn, err := net.DialTimeout("tcp", dialAddr, c.settings.Timeout)
 	if err != nil {
 		c.logger.Error("Connect: Failed to dial router", "error", err)
 		return err

@@ -4,7 +4,6 @@ import (
 	"io"
 	"log/slog"
 	"net"
-	"runtime"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -23,17 +22,21 @@ func newTestClient(settings ClientSettings) *Client {
 	}
 }
 
-// startReceive launches c.receive() in a goroutine and returns a channel that
-// is closed when the goroutine exits. It also yields the scheduler so that the
-// goroutine has a chance to capture c.conn before the caller replaces it.
+// startReceive launches c.receive() in a goroutine and blocks until the
+// goroutine has captured c.conn into its local variable. This uses the
+// onConnCaptured test hook so there is no data race when the caller
+// subsequently writes to c.conn.
 func startReceive(c *Client) <-chan struct{} {
+	captured := make(chan struct{})
+	c.onConnCaptured = func() {
+		close(captured)
+	}
 	done := make(chan struct{})
 	go func() {
 		defer close(done)
 		c.receive()
 	}()
-	runtime.Gosched()
-	time.Sleep(10 * time.Millisecond)
+	<-captured // wait until receive() has captured c.conn
 	return done
 }
 
@@ -44,8 +47,8 @@ func startReceive(c *Client) <-chan struct{} {
 func TestStaleGoroutineDoesNotCloseNewConnection(t *testing.T) {
 	serverA, clientA := net.Pipe()
 	serverB, clientB := net.Pipe()
-	defer serverB.Close()
-	defer clientB.Close()
+	defer func() { _ = serverB.Close() }()
+	defer func() { _ = clientB.Close() }()
 
 	c := newTestClient(ClientSettings{})
 	c.conn = clientA
@@ -55,7 +58,7 @@ func TestStaleGoroutineDoesNotCloseNewConnection(t *testing.T) {
 	c.conn = clientB
 
 	// Trigger EOF in the stale goroutine.
-	serverA.Close()
+	_ = serverA.Close()
 
 	select {
 	case <-done:
@@ -72,7 +75,7 @@ func TestStaleGoroutineDoesNotCloseNewConnection(t *testing.T) {
 	}()
 
 	buf := make([]byte, len(msg))
-	clientB.SetDeadline(time.Now().Add(500 * time.Millisecond))
+	_ = clientB.SetDeadline(time.Now().Add(500 * time.Millisecond))
 	_, readErr := clientB.Read(buf)
 
 	assert.NoError(t, <-writeErr, "serverB write should succeed — clientB must still be open")
@@ -99,11 +102,11 @@ func TestStaleGoroutineDoesNotFireOnConnectionLost(t *testing.T) {
 
 	// Simulate completed reconnect.
 	_, clientNew := net.Pipe()
-	defer clientNew.Close()
+	defer func() { _ = clientNew.Close() }()
 	c.conn = clientNew
 
 	// Trigger EOF in the stale goroutine.
-	serverOld.Close()
+	_ = serverOld.Close()
 
 	select {
 	case <-done:

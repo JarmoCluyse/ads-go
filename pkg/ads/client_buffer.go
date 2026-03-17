@@ -15,6 +15,10 @@ import (
 // connection this goroutine was started for.
 func (c *Client) receive() {
 	conn := c.conn // capture at goroutine start
+	// Signal test hook that conn has been captured (eliminates sleep-based sync).
+	if c.onConnCaptured != nil {
+		c.onConnCaptured()
+	}
 	c.logger.Info("receive: Starting receive goroutine.")
 	defer func() {
 		if err := conn.Close(); err != nil {

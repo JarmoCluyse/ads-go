@@ -39,6 +39,12 @@ type Client struct {
 	lastRestartIndex        *uint16                        // last seen restart index (nil if not yet read or not supported)
 	extendedStateMutex      sync.RWMutex                   // protects extended state fields
 	consecutiveReadFailures int                            // number of consecutive state read failures
+
+	// onConnCaptured is an optional test hook called from receive() immediately
+	// after it captures c.conn into a local variable. Tests use this to
+	// synchronize without relying on time.Sleep, eliminating the data race
+	// that the race detector would otherwise flag on c.conn.
+	onConnCaptured func()
 }
 
 // ClientSettings holds the settings for the ADS client.

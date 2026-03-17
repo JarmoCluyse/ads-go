@@ -54,6 +54,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - Removed redundant newline in help command output (go vet warning)
+- **Reconnection loop after `set_state config/run`**: Two races in the reconnect path caused an infinite loop when TwinCAT left Run mode
+  - Stale `receive()` goroutine was closing the newly established connection via its deferred `conn.Close()`, immediately dropping it and triggering another reconnect cycle
+  - Stale `receive()` goroutine was firing `OnConnectionLost` even after `c.conn` had already been replaced by a successful reconnect, stacking reconnect loops
+  - `Connect()` now resets the receive buffer before starting a new session to prevent stale packet framing from bleeding into the new connection
+- **`OnConnectionLost` no longer fires on TC state transitions**: State changes (Run→Config, Config→Run) are reported exclusively via `OnStateChange`; `OnConnectionLost` is reserved for genuine connection drops (TCP EOF, poll timeouts). This allows the client to stay connected and operational while TwinCAT is in Config mode.
 
 ## [0.2.0] - 2026-02-10
 

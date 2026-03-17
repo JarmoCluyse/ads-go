@@ -23,6 +23,10 @@ func (c *Client) Connect() error {
 	}
 	c.conn = conn
 
+	// Reset the receive buffer so stale data from a previous connection cannot
+	// bleed into the new session's packet framing.
+	c.receiveBuffer.Reset()
+
 	if err := c.registerAdsPort(); err != nil {
 		if closeErr := c.conn.Close(); closeErr != nil {
 			c.logger.Error("Connect: Failed to close connection after port registration failure", "error", closeErr)

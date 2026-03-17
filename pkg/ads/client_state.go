@@ -186,17 +186,9 @@ func (c *Client) checkState(pollerID int) {
 			"from", oldState.AdsState.String(),
 			"to", newState.AdsState.String())
 
+		// OnStateChange fires for every transition (Run→Config, Config→Run, etc.).
+		// Callers use it to clean up subscriptions/symbols when TC leaves Run.
 		c.invokeStateChangeHook(newState, oldState)
-
-		// If state is not Run, trigger connection lost (which triggers reconnection)
-		if newState.AdsState != types.ADSStateRun {
-			c.logger.Warn("checkState: TwinCAT not in Run mode, triggering connection lost",
-				"state", newState.AdsState.String())
-
-			// Don't schedule next check - let reconnection handle it
-			c.invokeConnectionLostHook(fmt.Errorf("TwinCAT state changed to %s (not Run)", newState.AdsState.String()))
-			return
-		}
 	} else if newRestartIndex != nil && oldRestartIndex != nil && *newRestartIndex != *oldRestartIndex {
 		// Restart detected - restart index changed but ADS state stayed the same
 		c.logger.Info("checkState: TwinCAT system restarted (restart index changed)",

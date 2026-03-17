@@ -10,10 +10,18 @@ import (
 )
 
 // receive handles incoming data from the ADS router.
+// It captures the conn at startup so that a subsequent Connect() replacing c.conn
+// does not affect this goroutine, and so the deferred Close() only closes the
+// connection this goroutine was started for.
 func (c *Client) receive() {
+	conn := c.conn // capture at goroutine start
+	// Signal test hook that conn has been captured (eliminates sleep-based sync).
+	if c.onConnCaptured != nil {
+		c.onConnCaptured()
+	}
 	c.logger.Info("receive: Starting receive goroutine.")
 	defer func() {
-		if err := c.conn.Close(); err != nil {
+		if err := conn.Close(); err != nil {
 			c.logger.Error("receive: Failed to close connection", "error", err)
 		}
 		c.logger.Info("receive: Receive goroutine terminated.")
@@ -23,7 +31,7 @@ func (c *Client) receive() {
 	tempBuf := make([]byte, 4096) // Read in chunks
 
 	for {
-		n, err := c.conn.Read(tempBuf)
+		n, err := conn.Read(tempBuf)
 		if err != nil {
 			if err == io.EOF {
 				c.logger.Info("receive: Connection closed by remote.")
@@ -31,10 +39,23 @@ func (c *Client) receive() {
 				c.logger.Error("receive: Error reading from connection", "error", err)
 			}
 
-			// Invoke OnConnectionLost hook asynchronously (fire-and-forget)
-			c.invokeConnectionLostHook(err)
+			// Only invoke OnConnectionLost if this goroutine still owns the active conn.
+			// If Connect() has already replaced c.conn, a new receive() is running and
+			// we must not fire the hook again (which would kick off another reconnect loop).
+			if c.conn == conn {
+				c.invokeConnectionLostHook(err)
+			} else {
+				c.logger.Info("receive: Stale goroutine exiting — connection already replaced, skipping hook.")
+			}
 
 			return // Exit goroutine on error or EOF
+		}
+
+		// Guard: only write if this goroutine still owns the active connection.
+		// A stale goroutine must not corrupt the new connection's receive buffer.
+		if c.conn != conn {
+			c.logger.Info("receive: Stale goroutine detected after read — discarding data and exiting.")
+			return
 		}
 
 		// Write read data to the receive buffer

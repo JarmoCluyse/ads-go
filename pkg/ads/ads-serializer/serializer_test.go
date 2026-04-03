@@ -268,6 +268,66 @@ func TestSerialize_Primitives(t *testing.T) {
 			expected: []byte{0x00},
 		},
 		{
+			name:     "BOOL - int 1 as true",
+			value:    int(1),
+			dataType: types.AdsDataType{DataType: types.ADST_BIT},
+			expected: []byte{0x01},
+		},
+		{
+			name:     "BOOL - int 0 as false",
+			value:    int(0),
+			dataType: types.AdsDataType{DataType: types.ADST_BIT},
+			expected: []byte{0x00},
+		},
+		{
+			name:     "INT8 - true as 1",
+			value:    true,
+			dataType: types.AdsDataType{DataType: types.ADST_INT8},
+			expected: []byte{0x01},
+		},
+		{
+			name:     "INT8 - false as 0",
+			value:    false,
+			dataType: types.AdsDataType{DataType: types.ADST_INT8},
+			expected: []byte{0x00},
+		},
+		{
+			name:     "UINT8 - true as 1",
+			value:    true,
+			dataType: types.AdsDataType{DataType: types.ADST_UINT8},
+			expected: []byte{0x01},
+		},
+		{
+			name:     "UINT8 - false as 0",
+			value:    false,
+			dataType: types.AdsDataType{DataType: types.ADST_UINT8},
+			expected: []byte{0x00},
+		},
+		{
+			name:     "INT16 - true as 1",
+			value:    true,
+			dataType: types.AdsDataType{DataType: types.ADST_INT16},
+			expected: []byte{0x01, 0x00},
+		},
+		{
+			name:     "INT16 - false as 0",
+			value:    false,
+			dataType: types.AdsDataType{DataType: types.ADST_INT16},
+			expected: []byte{0x00, 0x00},
+		},
+		{
+			name:     "INT32 - true as 1",
+			value:    true,
+			dataType: types.AdsDataType{DataType: types.ADST_INT32},
+			expected: []byte{0x01, 0x00, 0x00, 0x00},
+		},
+		{
+			name:     "INT32 - false as 0",
+			value:    false,
+			dataType: types.AdsDataType{DataType: types.ADST_INT32},
+			expected: []byte{0x00, 0x00, 0x00, 0x00},
+		},
+		{
 			name:     "INT8",
 			value:    int8(42),
 			dataType: types.AdsDataType{DataType: types.ADST_INT8},
@@ -480,6 +540,11 @@ func TestSerialize_InvalidType(t *testing.T) {
 		{
 			name:     "BOOL with wrong type",
 			value:    "not a bool",
+			dataType: types.AdsDataType{DataType: types.ADST_BIT},
+		},
+		{
+			name:     "BOOL with invalid int",
+			value:    int(2),
 			dataType: types.AdsDataType{DataType: types.ADST_BIT},
 		},
 		{

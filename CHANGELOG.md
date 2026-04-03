@@ -42,6 +42,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - 14 global variables available for testing (basic types, arrays, structs)
 
 ### Changed
+- **Flexible boolean/integer coercion in `WriteValue`**:
+  - `ADST_BIT` (BOOL) now accepts integer `0` or `1` in addition to `bool`
+  - All integer and float types (`INT8`–`UINT64`, `REAL32`/`REAL64`) now accept `bool` (`true` → `1`, `false` → `0`)
 - Updated CLI read/write commands to use example project variables
   - `read_value`/`write_value` now use `GLOBAL.gMyInt`
   - `read_bool`/`write_bool` now use `GLOBAL.gMyBool`

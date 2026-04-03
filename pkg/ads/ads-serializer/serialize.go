@@ -118,9 +118,17 @@ func Serialize(value any, dataType types.AdsDataType, isArrayItem ...bool) ([]by
 		return buf.Bytes(), nil
 
 	case types.ADST_BIT:
-		b, ok := value.(bool)
-		if !ok {
-			return nil, fmt.Errorf("invalid type for ADST_BIT: %T (expected bool)", value)
+		var b bool
+		switch v := value.(type) {
+		case bool:
+			b = v
+		case int:
+			if v != 0 && v != 1 {
+				return nil, fmt.Errorf("invalid value for ADST_BIT: %d (expected 0 or 1)", v)
+			}
+			b = v == 1
+		default:
+			return nil, fmt.Errorf("invalid type for ADST_BIT: %T (expected bool or 0/1)", value)
 		}
 		buf.Write(adsprimitives.WriteBool(b))
 

@@ -7,9 +7,14 @@ import "reflect"
 // preventing panics and ensuring data integrity.
 
 // toInt8 converts any to int8 with range checking.
-// Supports: int8, int, int16, int32, int64 (with bounds checking).
+// Supports: bool, int8, int, int16, int32, int64 (with bounds checking).
 func toInt8(value any) (int8, bool) {
 	switch v := value.(type) {
+	case bool:
+		if v {
+			return 1, true
+		}
+		return 0, true
 	case int8:
 		return v, true
 	case int:
@@ -34,9 +39,14 @@ func toInt8(value any) (int8, bool) {
 }
 
 // toUint8 converts any to uint8 with range checking.
-// Supports: uint8, int, uint16, uint32, uint64 (with bounds checking).
+// Supports: bool, uint8, int, uint16, uint32, uint64 (with bounds checking).
 func toUint8(value any) (uint8, bool) {
 	switch v := value.(type) {
+	case bool:
+		if v {
+			return 1, true
+		}
+		return 0, true
 	case uint8:
 		return v, true
 	case int:
@@ -61,9 +71,14 @@ func toUint8(value any) (uint8, bool) {
 }
 
 // toInt16 converts any to int16 with range checking.
-// Supports: int16, int, int32, int64 (with bounds checking).
+// Supports: bool, int16, int, int32, int64 (with bounds checking).
 func toInt16(value any) (int16, bool) {
 	switch v := value.(type) {
+	case bool:
+		if v {
+			return 1, true
+		}
+		return 0, true
 	case int16:
 		return v, true
 	case int:
@@ -86,9 +101,14 @@ func toInt16(value any) (int16, bool) {
 }
 
 // toUint16 converts any to uint16 with range checking.
-// Supports: uint16, int, uint32, uint64 (with bounds checking).
+// Supports: bool, uint16, int, uint32, uint64 (with bounds checking).
 func toUint16(value any) (uint16, bool) {
 	switch v := value.(type) {
+	case bool:
+		if v {
+			return 1, true
+		}
+		return 0, true
 	case uint16:
 		return v, true
 	case int:
@@ -111,9 +131,14 @@ func toUint16(value any) (uint16, bool) {
 }
 
 // toInt32 converts any to int32 with range checking.
-// Supports: int32, int, int64 (with bounds checking).
+// Supports: bool, int32, int, int64 (with bounds checking).
 func toInt32(value any) (int32, bool) {
 	switch v := value.(type) {
+	case bool:
+		if v {
+			return 1, true
+		}
+		return 0, true
 	case int32:
 		return v, true
 	case int:
@@ -129,9 +154,14 @@ func toInt32(value any) (int32, bool) {
 }
 
 // toUint32 converts any to uint32 with range checking.
-// Supports: uint32, int, uint64 (with bounds checking).
+// Supports: bool, uint32, int, uint64 (with bounds checking).
 func toUint32(value any) (uint32, bool) {
 	switch v := value.(type) {
+	case bool:
+		if v {
+			return 1, true
+		}
+		return 0, true
 	case uint32:
 		return v, true
 	case int:
@@ -147,9 +177,14 @@ func toUint32(value any) (uint32, bool) {
 }
 
 // toInt64 converts any to int64.
-// Supports: int64, int.
+// Supports: bool, int64, int.
 func toInt64(value any) (int64, bool) {
 	switch v := value.(type) {
+	case bool:
+		if v {
+			return 1, true
+		}
+		return 0, true
 	case int64:
 		return v, true
 	case int:
@@ -159,9 +194,14 @@ func toInt64(value any) (int64, bool) {
 }
 
 // toUint64 converts any to uint64.
-// Supports: uint64, int (non-negative).
+// Supports: bool, uint64, int (non-negative).
 func toUint64(value any) (uint64, bool) {
 	switch v := value.(type) {
+	case bool:
+		if v {
+			return 1, true
+		}
+		return 0, true
 	case uint64:
 		return v, true
 	case int:
@@ -173,9 +213,14 @@ func toUint64(value any) (uint64, bool) {
 }
 
 // toFloat32 converts any to float32.
-// Supports: float32, float64, int.
+// Supports: bool, float32, float64, int.
 func toFloat32(value any) (float32, bool) {
 	switch v := value.(type) {
+	case bool:
+		if v {
+			return 1, true
+		}
+		return 0, true
 	case float32:
 		return v, true
 	case float64:
@@ -187,9 +232,14 @@ func toFloat32(value any) (float32, bool) {
 }
 
 // toFloat64 converts any to float64.
-// Supports: float64, float32, int.
+// Supports: bool, float64, float32, int.
 func toFloat64(value any) (float64, bool) {
 	switch v := value.(type) {
+	case bool:
+		if v {
+			return 1, true
+		}
+		return 0, true
 	case float64:
 		return v, true
 	case float32:

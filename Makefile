@@ -20,6 +20,7 @@ help:
 	@echo "  test             - Run tests on all modules"
 	@echo "  test-root        - Run tests on root module only"
 	@echo "  test-cmd         - Run tests on cmd module only"
+	@echo "  test-integration - Run integration tests only"
 	@echo "  coverage         - Run tests with coverage report"
 	@echo "  coverage-html    - Run coverage and open HTML report"
 	@echo "  lint             - Run linter on all modules"
@@ -45,7 +46,7 @@ dev:
 ################################################################################
 
 .PHONY: test
-test: test-root test-cmd
+test: test-root test-cmd test-integration
 
 .PHONY: test-root
 test-root:
@@ -56,6 +57,11 @@ test-root:
 test-cmd:
 	@echo "Running tests on cmd module..."
 	cd $(CMD_MODULE) && go test ./... -v
+
+.PHONY: test-integration
+test-integration:
+	@echo "Running integration tests..."
+	go test -v -tags=integration ./test/integration
 
 .PHONY: coverage
 coverage:

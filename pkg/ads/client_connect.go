@@ -44,7 +44,7 @@ func (c *Client) Connect() error {
 		c.logger.Warn("Connect: PLC setup not complete", "error", err)
 	}
 
-	c.logger.Info("Connect: Successfully connected to ADS router", "localAMS", c.localAmsAddr.NetID, "port", c.localAmsAddr.Port)
+	c.logger.Info("Connect: Successfully connected to ADS router", "localAMS", c.localAmsAddr.NetID, "localPort", c.localAmsAddr.Port)
 
 	// Invoke OnConnect hook (synchronous)
 	if err := c.invokeConnectHook(c.localAmsAddr); err != nil {
@@ -64,9 +64,11 @@ func (c *Client) Connect() error {
 
 		// Trigger OnStateChange hook for initial state (with oldState=nil)
 		// Called synchronously so the caller sees the state before Connect() returns.
-		c.invokeHook("OnStateChange", func() {
-			c.settings.OnStateChange(c, initialState, nil)
-		})
+		if c.settings.OnStateChange != nil {
+			c.invokeHook("OnStateChange", func() {
+				c.settings.OnStateChange(c, initialState, nil)
+			})
+		}
 	}
 
 	// Start state poller if enabled
@@ -94,7 +96,7 @@ func (c *Client) Disconnect() error {
 		if err := c.UnsubscribeAll(); err != nil {
 			c.logger.Warn("Disconnect: Error unsubscribing from all subscriptions", "error", err)
 		}
-		c.logger.Info("Disconnect: Unsubscribed from all active subscriptions.")
+		c.logger.Debug("Disconnect: Unsubscribed from all active subscriptions.")
 
 		// Invoke OnDisconnect hook asynchronously (fire-and-forget)
 		go c.invokeHook("OnDisconnect", func() {
@@ -134,7 +136,7 @@ func (c *Client) setupPlcConnection() error {
 		c.logger.Error("setupPlcConnection: Failed to read state", "error", err)
 		return fmt.Errorf("failed to read state: %w", err)
 	}
-	c.logger.Info("setupPlcConnection: Current PLC state", "state", state.AdsState)
+	c.logger.Debug("setupPlcConnection: Current PLC state", "state", state.AdsState)
 
 	if types.ADSState(state.AdsState) != types.ADSStateRun {
 		c.logger.Warn("setupPlcConnection: PLC not in RUN mode", "state", state.AdsState)
@@ -178,8 +180,8 @@ func (c *Client) registerAdsPort() error {
 	c.localAmsAddr.NetID = utils.ByteArrayToAmsNetIdStr(respData[0:6])
 	c.localAmsAddr.Port = binary.LittleEndian.Uint16(respData[6:8])
 
-	c.logger.Debug("registerAdsPort: Local AMS Address set", "netID", c.localAmsAddr.NetID, "port", c.localAmsAddr.Port)
-	c.logger.Info("registerAdsPort: ADS port registration successful.")
+	c.logger.Debug("registerAdsPort: Local AMS Address set", "netID", c.localAmsAddr.NetID, "localPort", c.localAmsAddr.Port)
+	c.logger.Info("registerAdsPort: ADS port registration successful.", "netID", c.localAmsAddr.NetID, "localPort", c.localAmsAddr.Port)
 	return nil
 }
 
@@ -196,6 +198,6 @@ func (c *Client) unregisterAdsPort() error {
 		c.logger.Error("unregisterAdsPort: Failed to write unregistration packet", "error", err)
 		return err
 	}
-	c.logger.Info("unregisterAdsPort: Unregistration packet sent.")
+	c.logger.Info("unregisterAdsPort: Unregistration packet sent.", "localPort", c.localAmsAddr.Port)
 	return nil
 }

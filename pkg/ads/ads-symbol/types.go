@@ -2,6 +2,19 @@ package adssymbol
 
 import "github.com/jarmocluyse/ads-go/pkg/ads/types"
 
+// SymbolAttribute represents a single TwinCAT pragma attribute attached to a
+// PLC variable, e.g. {attribute 'otelcol_role' := 'log_ring'}.
+type SymbolAttribute struct {
+	Name  string
+	Value string
+}
+
+// ArrayInfoEntry describes one dimension of an array type.
+type ArrayInfoEntry struct {
+	StartIndex int32  // StartIndex is the lower bound of the array dimension
+	Length     uint32 // Length is the number of elements in this dimension
+}
+
 // AdsSymbol represents an ADS symbol with metadata about a PLC variable.
 //
 // An ADS symbol contains information about a variable in the PLC including
@@ -19,4 +32,7 @@ type AdsSymbol struct {
 	Name          string               // Name is the variable name in the PLC (e.g., "MAIN.MyVariable")
 	Type          string               // Type is the variable type name (e.g., "INT", "ARRAY[0..10] OF REAL")
 	Comment       string               // Comment is the descriptive comment from the PLC code
+	ArrayInfo     []ArrayInfoEntry     // ArrayInfo holds dimension info for array types (present when arrayDimension > 0)
+	TypeGUID      string               // TypeGUID is the 16-byte type GUID as a hex string (present when Flags & ADSSymbolFlagTypeGuid)
+	Attributes    []SymbolAttribute    // Attributes holds TwinCAT pragma attributes (present when Flags & ADSSymbolFlagAttributes)
 }

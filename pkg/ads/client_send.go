@@ -21,7 +21,7 @@ func (c *Client) send(req AdsCommandRequest) ([]byte, error) {
 		c.logger.Error("send: Connection is nil, cannot send command")
 		return nil, fmt.Errorf("connection is not established")
 	}
-	c.logger.Debug("send: Preparing to send command", "command", req.Command.String(), "dataLength", len(req.Data))
+	c.logger.Debug("send: Preparing to send command", "command", req.Command.String(), "length", len(req.Data))
 
 	invokeID, channel := c.getInvokeID()
 	defer c.removeInvokeId(invokeID)
@@ -39,14 +39,14 @@ func (c *Client) send(req AdsCommandRequest) ([]byte, error) {
 
 	packet := append(amsTcpHeader, amsHeader...)
 	packet = append(packet, req.Data...)
-	c.logger.Debug("send: Constructed packet", "totalLength", len(packet), "packet", fmt.Sprintf("%x", packet))
+	c.logger.Debug("send: Constructed packet", "length", len(packet), "packet", fmt.Sprintf("%x", packet))
 
 	_, err = c.conn.Write(packet)
 	if err != nil {
 		c.logger.Error("send: Failed to write packet to connection", "error", err)
 		return nil, err
 	}
-	c.logger.Debug("send: Packet sent. Waiting for response or timeout.", "packet", packet)
+	c.logger.Debug("send: Packet sent. Waiting for response or timeout.", "invokeID", invokeID)
 
 	select {
 	case response := <-channel:

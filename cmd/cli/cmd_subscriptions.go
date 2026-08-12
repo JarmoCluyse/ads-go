@@ -52,7 +52,7 @@ func createSubscriptionCallback(id int, path string) ads.SubscriptionCallback {
 func handleSubscribe(args []string, client *ads.Client) {
 	// Hardcoded test configuration
 	var port uint16 = 852
-	path := "GLOBAL.gMyBoolToogle"
+	path := "GVL_Global.bMyBoolToogle"
 
 	// Allow optional path override
 	if len(args) > 0 {
@@ -211,7 +211,7 @@ func handleUnsubscribeAll(args []string, client *ads.Client) {
 // Usage: sub_counter
 func handleSubCounter(args []string, client *ads.Client) {
 	var port uint16 = 852
-	path := "GLOBAL.gMyIntCounter"
+	path := "GVL_Global.nMyIntCounter"
 
 	settings := ads.SubscriptionSettings{
 		CycleTime:    100 * time.Millisecond,
@@ -242,7 +242,7 @@ func handleSubCounter(args []string, client *ads.Client) {
 // Usage: sub_toggle
 func handleSubToggle(args []string, client *ads.Client) {
 	var port uint16 = 852
-	path := "GLOBAL.gMyBoolToogle"
+	path := "GVL_Global.bMyBoolToogle"
 
 	settings := ads.SubscriptionSettings{
 		CycleTime:    100 * time.Millisecond,
@@ -273,7 +273,7 @@ func handleSubToggle(args []string, client *ads.Client) {
 // Usage: sub_timed_counter
 func handleSubTimedCounter(args []string, client *ads.Client) {
 	var port uint16 = 852
-	path := "GLOBAL.gTimedIntCounter"
+	path := "GVL_Global.nTimedIntCounter"
 
 	settings := ads.SubscriptionSettings{
 		CycleTime:    500 * time.Millisecond,
@@ -304,7 +304,7 @@ func handleSubTimedCounter(args []string, client *ads.Client) {
 // Usage: sub_timed_toggle
 func handleSubTimedToggle(args []string, client *ads.Client) {
 	var port uint16 = 852
-	path := "GLOBAL.gTimedBoolToogle"
+	path := "GVL_Global.bTimedBoolToogle"
 
 	settings := ads.SubscriptionSettings{
 		CycleTime:    500 * time.Millisecond,
@@ -342,10 +342,10 @@ func handleSubAll(args []string, client *ads.Client) {
 		cycleTime time.Duration
 		name      string
 	}{
-		{"GLOBAL.gMyIntCounter", 100 * time.Millisecond, "cycle-based counter"},
-		{"GLOBAL.gMyBoolToogle", 100 * time.Millisecond, "cycle-based toggle"},
-		{"GLOBAL.gTimedIntCounter", 500 * time.Millisecond, "time-based counter"},
-		{"GLOBAL.gTimedBoolToogle", 500 * time.Millisecond, "time-based toggle"},
+		{"GVL_Global.nMyIntCounter", 100 * time.Millisecond, "cycle-based counter"},
+		{"GVL_Global.bMyBoolToogle", 100 * time.Millisecond, "cycle-based toggle"},
+		{"GVL_Global.nTimedIntCounter", 500 * time.Millisecond, "time-based counter"},
+		{"GVL_Global.bTimedBoolToogle", 500 * time.Millisecond, "time-based toggle"},
 	}
 
 	createdIDs := []int{}

@@ -11,7 +11,7 @@ import (
 // handleEnableCounter enables or disables the cycle-based integer counter.
 // Usage: enable_counter <true|false>
 func handleEnableCounter(args []string, client *ads.Client) {
-	data := "GLOBAL.gIntCounterActive"
+	data := "GVL_Global.bIntCounterActive"
 	var port uint16 = 852
 	if len(args) == 0 {
 		fmt.Println("[ERROR] Command 'enable_counter': No value provided. Use 'true' or 'false'.")
@@ -42,7 +42,7 @@ func handleEnableCounter(args []string, client *ads.Client) {
 // handleEnableToggle enables or disables the cycle-based boolean toggle.
 // Usage: enable_toggle <true|false>
 func handleEnableToggle(args []string, client *ads.Client) {
-	data := "GLOBAL.gBoolToggleActive"
+	data := "GVL_Global.bBoolToggleActive"
 	var port uint16 = 852
 	if len(args) == 0 {
 		fmt.Println("[ERROR] Command 'enable_toggle': No value provided. Use 'true' or 'false'.")
@@ -73,7 +73,7 @@ func handleEnableToggle(args []string, client *ads.Client) {
 // handleEnableTimedCounter enables or disables the time-based integer counter.
 // Usage: enable_timed_counter <true|false>
 func handleEnableTimedCounter(args []string, client *ads.Client) {
-	data := "GLOBAL.gTimedCounterActive"
+	data := "GVL_Global.bTimedCounterActive"
 	var port uint16 = 852
 	if len(args) == 0 {
 		fmt.Println("[ERROR] Command 'enable_timed_counter': No value provided. Use 'true' or 'false'.")
@@ -104,7 +104,7 @@ func handleEnableTimedCounter(args []string, client *ads.Client) {
 // handleEnableTimedToggle enables or disables the time-based boolean toggle.
 // Usage: enable_timed_toggle <true|false>
 func handleEnableTimedToggle(args []string, client *ads.Client) {
-	data := "GLOBAL.gTimedToggleActive"
+	data := "GVL_Global.bTimedToggleActive"
 	var port uint16 = 852
 	if len(args) == 0 {
 		fmt.Println("[ERROR] Command 'enable_timed_toggle': No value provided. Use 'true' or 'false'.")
@@ -139,13 +139,13 @@ func handleReadCounters(args []string, client *ads.Client) {
 
 	// List of variables to read
 	vars := []string{
-		"GLOBAL.gMyIntCounter",
-		"GLOBAL.gMyBoolToogle",
-		"GLOBAL.gTimedIntCounter",
-		"GLOBAL.gTimedBoolToogle",
+		"GVL_Global.nMyIntCounter",
+		"GVL_Global.bMyBoolToogle",
+		"GVL_Global.nTimedIntCounter",
+		"GVL_Global.bTimedBoolToogle",
 	}
 
-	fmt.Println("[INFO] Reading counter and toggle values:")
+	fmt.Println("[INFO] Reading counter and toggle values from GVL_Global:")
 	for _, varName := range vars {
 		value, err := client.ReadValue(port, varName)
 		if err != nil {
@@ -162,26 +162,26 @@ func handleResetCounters(args []string, client *ads.Client) {
 	var port uint16 = 852
 
 	// Reset cycle-based counter
-	if err := client.WriteValue(port, "GLOBAL.gMyIntCounter", 0); err != nil {
-		fmt.Printf("[ERROR] Failed to reset gMyIntCounter: %v\n", err)
+	if err := client.WriteValue(port, "GVL_Global.nMyIntCounter", 0); err != nil {
+		fmt.Printf("[ERROR] Failed to reset GVL_Global.nMyIntCounter: %v\n", err)
 		return
 	}
 
 	// Reset cycle-based toggle
-	if err := client.WriteValue(port, "GLOBAL.gMyBoolToogle", false); err != nil {
-		fmt.Printf("[ERROR] Failed to reset gMyBoolToogle: %v\n", err)
+	if err := client.WriteValue(port, "GVL_Global.bMyBoolToogle", false); err != nil {
+		fmt.Printf("[ERROR] Failed to reset GVL_Global.bMyBoolToogle: %v\n", err)
 		return
 	}
 
 	// Reset timed counter
-	if err := client.WriteValue(port, "GLOBAL.gTimedIntCounter", 0); err != nil {
-		fmt.Printf("[ERROR] Failed to reset gTimedIntCounter: %v\n", err)
+	if err := client.WriteValue(port, "GVL_Global.nTimedIntCounter", 0); err != nil {
+		fmt.Printf("[ERROR] Failed to reset GVL_Global.nTimedIntCounter: %v\n", err)
 		return
 	}
 
 	// Reset timed toggle
-	if err := client.WriteValue(port, "GLOBAL.gTimedBoolToogle", false); err != nil {
-		fmt.Printf("[ERROR] Failed to reset gTimedBoolToogle: %v\n", err)
+	if err := client.WriteValue(port, "GVL_Global.bTimedBoolToogle", false); err != nil {
+		fmt.Printf("[ERROR] Failed to reset GVL_Global.bTimedBoolToogle: %v\n", err)
 		return
 	}
 
@@ -195,10 +195,10 @@ func handleReadStatus(args []string, client *ads.Client) {
 
 	// List of enable flags to read
 	flags := []string{
-		"GLOBAL.gIntCounterActive",
-		"GLOBAL.gBoolToggleActive",
-		"GLOBAL.gTimedCounterActive",
-		"GLOBAL.gTimedToggleActive",
+		"GVL_Global.nIntCounterActive",
+		"GVL_Global.bBoolToggleActive",
+		"GVL_Global.nTimedCounterActive",
+		"GVL_Global.bTimedToggleActive",
 	}
 
 	fmt.Println("[INFO] Reading enable flag status:")
@@ -219,7 +219,7 @@ func handleReadStatus(args []string, client *ads.Client) {
 // handleSetCyclePeriod sets the cycle period for timed operations.
 // Usage: set_period <seconds>
 func handleSetCyclePeriod(args []string, client *ads.Client) {
-	data := "GLOBAL.gCyclePeriod"
+	data := "GVL_Global.tCyclePeriod"
 	var port uint16 = 852
 
 	if len(args) == 0 {
@@ -252,7 +252,7 @@ func handleSetCyclePeriod(args []string, client *ads.Client) {
 // handleReadCyclePeriod reads the current cycle period.
 // Usage: read_period
 func handleReadCyclePeriod(args []string, client *ads.Client) {
-	data := "GLOBAL.gCyclePeriod"
+	data := "GVL_Global.tCyclePeriod"
 	var port uint16 = 852
 
 	value, err := client.ReadValue(port, data)

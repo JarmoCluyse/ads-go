@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/jarmocluyse/ads-go/pkg/ads/ads-stateinfo"
+	adsconstants "github.com/jarmocluyse/ads-go/pkg/ads/constants"
 )
 
 // Response represents a response from an ADS device.
@@ -94,13 +95,13 @@ type ClientSettings struct {
 // LoadDefaults sets the default values for any unset ClientSettings fields.
 func (cs *ClientSettings) LoadDefaults() {
 	if cs.TargetNetID == "" || cs.TargetNetID == "localhost" {
-		cs.TargetNetID = "127.0.0.1.1.1"
+		cs.TargetNetID = adsconstants.LoopbackAmsNetID
 	}
 	if cs.RouterHost == "" {
 		cs.RouterHost = "127.0.0.1"
 	}
 	if cs.RouterPort == 0 {
-		cs.RouterPort = 48898
+		cs.RouterPort = adsconstants.ADSDefaultTCPPort
 	}
 	if cs.Timeout == 0 {
 		cs.Timeout = 2 * time.Second
@@ -144,6 +145,12 @@ func (c *Client) invokeHook(hookName string, fn func()) {
 	}()
 
 	fn()
+}
+
+// LocalAmsAddr returns the AMS address assigned to this client by the router.
+// Only valid after a successful Connect call.
+func (c *Client) LocalAmsAddr() AmsAddress {
+	return c.localAmsAddr
 }
 
 // invokeConnectHook safely calls the OnConnect hook with panic recovery.

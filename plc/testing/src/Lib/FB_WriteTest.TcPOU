@@ -1,0 +1,44 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <POU Name="FB_WriteTest" Id="{9210e4e8-d22e-4964-823b-6bbbee7e173c}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_WriteTest
+VAR
+	// Writable targets — PLC never modifies these, Go test owns them
+	bBoolVar : BOOL;
+	nSintVar : SINT;
+	nUsintVar : USINT;
+	nByteVar : BYTE;
+	nIntVar : INT;
+	nUintVar : UINT;
+	nWordVar : WORD;
+	nDintVar : DINT;
+	nUdintVar : UDINT;
+	nDwordVar : DWORD;
+	nLintVar : LINT;
+	nUlintVar : ULINT;
+	nLwordVar : LWORD;
+	fRealVar : REAL;
+	fLrealVar : LREAL;
+	tTimeVar : TIME;
+	tdTimeOfDayVar : TOD;
+	dDateVar : DATE;
+	dtDateTimeVar : DT;
+	//tLtimeVar : LTIME;
+	//tdLTimeOfDayVar : LTOD;
+	//dLDateVar : LDATE;
+	//dtLDateTimeVar : LDT;
+	sStringVar : STRING(255);
+	stStructVar : ST_TypeTestStruct;
+	aIntArray : ARRAY[0..9] OF INT;
+	aDintArray : ARRAY[0..9] OF DINT;
+	aIntArray2d : ARRAY[0..2, 0..2] OF INT;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[]]></ST>
+    </Implementation>
+    <LineIds Name="FB_WriteTest">
+      <LineId Id="9" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

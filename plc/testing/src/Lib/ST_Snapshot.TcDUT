@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4026.21">
+  <DUT Name="ST_Snapshot" Id="{455DD0B1-13B5-4A5D-A92C-21573CDF6A0B}">
+    <Declaration><![CDATA[// All scalar PLC types, each derived from snapshot_seed.
+// Written atomically every PLC cycle; read as a struct over ADS.
+TYPE ST_Snapshot :
+STRUCT
+	snapshot_seed : UDINT;
+
+	v_bool   : BOOL;
+	v_sint   : SINT;
+	v_usint  : USINT;
+	v_byte   : BYTE;
+	v_int    : INT;
+	v_uint   : UINT;
+	v_word   : WORD;
+	v_dint   : DINT;
+	v_udint  : UDINT;
+	v_dword  : DWORD;
+	v_lint   : LINT;
+	v_ulint  : ULINT;
+	v_lword  : LWORD;
+	v_real   : REAL;
+	v_lreal  : LREAL;
+
+	// Date/time types (wire encoding: ADST_UINT32 or ADST_UINT64)
+	v_time   : TIME;   // ADST_UINT32, milliseconds
+	v_tod    : TOD;    // ADST_UINT32, ms since midnight (0..86399999)
+	v_date   : DATE;   // ADST_UINT32, seconds since 1970-01-01 (always midnight-aligned)
+	v_dt     : DT;     // ADST_UINT32, seconds since 1970-01-01 00:00:00
+	v_ltime  : LTIME;  // ADST_UINT64, nanoseconds
+	v_ltod   : LTOD;   // ADST_UINT64, ns since midnight (0..86399999999999)
+	v_ldate  : LDATE;  // ADST_UINT64, seconds since 1970-01-01 (always midnight-aligned)
+	v_ldt    : LDT;    // ADST_UINT64, ns since 1970-01-01 00:00:00
+
+	v_string : STRING(255);
+END_STRUCT
+END_TYPE]]></Declaration>
+  </DUT>
+</TcPlcObject>

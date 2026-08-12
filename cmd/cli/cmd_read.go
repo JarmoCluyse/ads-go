@@ -4,12 +4,13 @@ import (
 	"fmt"
 
 	"github.com/jarmocluyse/ads-go/pkg/ads"
+	"github.com/jarmocluyse/ads-go/pkg/ads/types"
 )
 
 // handleReadValue reads a generic value from the PLC.
 // Usage: read_value [symbol_path] [port]
 func handleReadValue(args []string, client *ads.Client) {
-	data := "GLOBAL.gMyInt"
+	data := "GVL_Global.nMyInt"
 	var port uint16 = 852
 
 	// Parse arguments if provided
@@ -31,7 +32,7 @@ func handleReadValue(args []string, client *ads.Client) {
 // handleReadBool reads a boolean value from the PLC.
 // Usage: read_bool [symbol_path] [port]
 func handleReadBool(args []string, client *ads.Client) {
-	data := "GLOBAL.gMyBool"
+	data := "GVL_Global.bMyBool"
 	var port uint16 = 852
 
 	// Parse arguments if provided
@@ -53,7 +54,7 @@ func handleReadBool(args []string, client *ads.Client) {
 // handleReadObject reads a structured object from the PLC.
 // Usage: read_object
 func handleReadObject(args []string, client *ads.Client) {
-	data := "GLOBAL.gMyDUT"
+	data := "GVL_Global.stMySampleStruct"
 	var port uint16 = 852
 	value, err := client.ReadValue(port, data)
 	if err != nil {
@@ -66,7 +67,7 @@ func handleReadObject(args []string, client *ads.Client) {
 // handleReadArray reads an array from the PLC.
 // Usage: read_array
 func handleReadArray(args []string, client *ads.Client) {
-	data := "GLOBAL.gIntArray"
+	data := "GVL_Global.aIntArray"
 	var port uint16 = 852
 	value, err := client.ReadValue(port, data)
 	if err != nil {
@@ -87,7 +88,7 @@ func handleListSymbols(args []string, client *ads.Client) {
 	}
 
 	// Use ReadRaw to get symbol upload info
-	data, err := client.ReadRaw(port, 0xF00C, 0, 24) // ADSReservedIndexGroupSymbolUploadInfo2
+	data, err := client.ReadRaw(port, uint32(types.ADSReservedIndexGroupSymbolUploadInfo2), 0, 24) // ADSReservedIndexGroupSymbolUploadInfo2
 	if err != nil {
 		fmt.Printf("[ERROR] Command 'list_symbols': Failed to get symbol info (port %d): %v\n", port, err)
 		return

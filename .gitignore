@@ -91,6 +91,7 @@ LineIDs.dbg.bak
 
 # Environment and config files (if you add these)
 .env
+.env.integration
 .env.local
 *.local
 

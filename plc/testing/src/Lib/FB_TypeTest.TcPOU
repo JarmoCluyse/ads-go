@@ -1,0 +1,146 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <POU Name="FB_TypeTest" Id="{bc0b066e-a64b-45c0-8e3e-84f5d0118792}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_TypeTest
+VAR
+	// Control (writable by Go test)
+	nSeed : UDINT := 0;
+	bAutoMode : BOOL := FALSE;
+	nAutoTickInterval : UDINT := 50;
+
+	// Outputs
+	bBoolVar : BOOL;
+	nSintVar : SINT;
+	nUsintVar : USINT;
+	nByteVar : BYTE;
+	nIntVar : INT;
+	nUintVar : UINT;
+	nWordVar : WORD;
+	nDintVar : DINT;
+	nUdintVar : UDINT;
+	nDwordVar : DWORD;
+	nLintVar : LINT;
+	nUlintVar : ULINT;
+	nLwordVar : LWORD;
+	fRealVar : REAL;
+	fLrealVar : LREAL;
+	tTimeVar : TIME;
+	tdTimeOfDayVar : TOD;
+	dDateVar : DATE;
+	dtDateTimeVar : DT;
+	//tLtimeVar : LTIME;
+	//tdLTimeOfDayVar : LTOD;
+	//dLDateVar : LDATE;
+	//dtLDateTimeVar : LDT;
+	sStringVar : STRING(255);
+	stStructVar : ST_TypeTestStruct;
+	aIntArray : ARRAY[0..9] OF INT;
+	aDintArray : ARRAY[0..9] OF DINT;
+	aIntArray2d : ARRAY[0..2, 0..2] OF INT;
+
+	// Private
+	nTtickCounter : UDINT;
+	nLoopIndex1 : UDINT;
+	nLoopIndex2 : UDINT;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[// -----------------------------------------------------------------------
+// Auto-increment mode: advance seed every auto_tick_interval cycles
+// -----------------------------------------------------------------------
+IF bAutoMode THEN
+	IF nTtickCounter >= nAutoTickInterval THEN
+		nSeed := nSeed + 1;
+		nTtickCounter := 0;
+	ELSE
+		nTtickCounter := nTtickCounter + 1;
+	END_IF
+END_IF
+
+// -----------------------------------------------------------------------
+// Update variables — all fields are deterministic functions of seed
+// -----------------------------------------------------------------------
+bBoolVar := (nSeed MOD 2 = 0);
+nSintVar := UDINT_TO_SINT(nSeed);
+nUsintVar := UDINT_TO_USINT(nSeed);
+nByteVar := UDINT_TO_BYTE(nSeed);
+nIntVar := UDINT_TO_INT(nSeed);
+nUintVar := UDINT_TO_UINT(nSeed);
+nWordVar := UDINT_TO_WORD(nSeed);
+nDintVar := UDINT_TO_DINT(nSeed);
+nUdintVar := nSeed;
+nDwordVar := UDINT_TO_DWORD(nSeed);
+nLintVar := UDINT_TO_LINT(nSeed);
+nUlintVar := UDINT_TO_ULINT(nSeed);
+nLwordVar := UDINT_TO_LWORD(nSeed);
+fRealVar := UDINT_TO_REAL(nSeed);
+fLrealVar := UDINT_TO_LREAL(nSeed);
+
+// Date/time types — raw truncating casts, same bit pattern Go test will verify
+tTimeVar := UDINT_TO_TIME(nSeed);
+tdTimeOfDayVar := UDINT_TO_TOD(nSeed MOD 86400000);
+dDateVar := UDINT_TO_DATE(nSeed);
+dtDateTimeVar := UDINT_TO_DT(nSeed);
+//tLTimeVar := ULINT_TO_LTIME(UDINT_TO_ULINT(nSeed));
+//tdLTimeOfDayVar  := ULINT_TO_LTOD(UDINT_TO_ULINT(nSeed) MOD 86400000000000);
+//dLDateVar := ULINT_TO_LDATE(UDINT_TO_ULINT(nSeed));
+//dtLDateTimeVar := ULINT_TO_LDT(UDINT_TO_ULINT(nSeed));
+sStringVar := CONCAT('S=', UDINT_TO_STRING(nSeed));
+
+// -----------------------------------------------------------------------
+// Update test struct — all fields are deterministic functions of seed
+// -----------------------------------------------------------------------
+stStructVar.nSeed := nSeed;
+
+stStructVar.bBoolVar := bBoolVar;
+stStructVar.nSintVar := nSintVar;
+stStructVar.nUsintVar := nUsintVar;
+stStructVar.nByteVar := nByteVar;
+stStructVar.nIntVar := nIntVar;
+stStructVar.nUintVar := nUintVar;
+stStructVar.nWordVar := nWordVar;
+stStructVar.nDintVar := nDintVar;
+stStructVar.nUdintVar := nUdintVar;
+stStructVar.nDwordVar := nDwordVar;
+stStructVar.nLintVar := nLintVar;
+stStructVar.nUlintVar := nUlintVar;
+stStructVar.nLwordVar := nLwordVar;
+stStructVar.fRealVar := fRealVar;
+stStructVar.fLrealVar := fLrealVar;
+stStructVar.tTimeVar := tTimeVar;
+stStructVar.tdTimeOfDayVar := tdTimeOfDayVar;
+stStructVar.dDateVar := dDateVar;
+stStructVar.dtDateTimeVar := dtDateTimeVar;
+//struct_var.tLTimeVar := ltime_var;
+//struct_var.tdLTimeOfDayVar := ltod_var;
+//struct_var.dLDateVar := ldate_var;
+//struct_var.dtLDateTimeVar := ldt_var;
+stStructVar.sStringVar := sStringVar;
+
+// -----------------------------------------------------------------------
+// Update 1-D arrays: element[i] = UDINT_TO_x(seed + i)
+// -----------------------------------------------------------------------
+FOR nLoopIndex1 := 0 TO 9 DO
+	aIntArray[nLoopIndex1] := UDINT_TO_INT(nSeed + nLoopIndex1);
+	aDintArray[nLoopIndex1] := UDINT_TO_DINT(nSeed + nLoopIndex1);
+END_FOR
+
+// -----------------------------------------------------------------------
+// Update 2-D array: element[i,j] = UDINT_TO_INT(seed + i*3 + j)
+// -----------------------------------------------------------------------
+FOR nLoopIndex1 := 0 TO 2 DO
+	FOR nLoopIndex2 := 0 TO 2 DO
+		aIntArray2d[nLoopIndex1, nLoopIndex2] := UDINT_TO_INT(nSeed + nLoopIndex1 * 3 + nLoopIndex2);
+	END_FOR
+END_FOR
+]]></ST>
+    </Implementation>
+    <LineIds Name="FB_TypeTest">
+      <LineId Id="4257" Count="39" />
+      <LineId Id="4298" Count="6" />
+      <LineId Id="4346" Count="22" />
+      <LineId Id="4328" Count="17" />
+      <LineId Id="415" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

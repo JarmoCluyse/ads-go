@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/jarmocluyse/ads-go/pkg/ads/ads-stateinfo"
+	adsstateinfo "github.com/jarmocluyse/ads-go/pkg/ads/ads-stateinfo"
 	"github.com/jarmocluyse/ads-go/pkg/ads/types"
 )
 
@@ -258,7 +258,7 @@ func (c *Client) checkStateForOperation(operationName string) error {
 	c.stateMutex.RUnlock()
 
 	if state == nil {
-		c.logger.Debug(operationName + ": System state unknown, allowing operation")
+		c.logger.Debug("checkStateForOperation: System state unknown, allowing operation", "operation", operationName)
 		return nil // Allow operation - state might not be cached yet
 	}
 
@@ -268,4 +268,12 @@ func (c *Client) checkStateForOperation(operationName string) error {
 	}
 
 	return nil
+}
+
+// RestartStatePoller stops any running state poller and starts a new one.
+// Call this after re-establishing ADS connectivity without a full TCP reconnect
+// (e.g. after a PLC activation that only changes the restart index) to resume
+// state monitoring for future restarts.
+func (c *Client) RestartStatePoller() {
+	c.startStatePoller()
 }

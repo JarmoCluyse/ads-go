@@ -1,0 +1,52 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <POU Name="FB_StructTest" Id="{b1c2d3e4-0000-4000-8000-000000000001}" SpecialFunc="None">
+    <Declaration><![CDATA[{attribute 'linkalways'}
+FUNCTION_BLOCK FB_StructTest
+VAR
+	nSeed : UDINT;
+	stPackNone : ST_PackNone;
+	stPackTwo : ST_PackTwo;
+	stPackFour : ST_PackFour;
+	stPackEight : ST_PackEight;
+	
+	// pack_*_write: Go-owned write targets (PLC never modifies, used in phase 2)
+	stPackNoneWrite : ST_PackNone;
+	stPackTwoWrite : ST_PackTwo;
+	stPackFourWrite : ST_PackFour;
+	stPackEightWrite : ST_PackEight;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[// All four structs share the same fields and the same seed-driven formula.
+// b1  = (seed MOD 2 = 0)
+// d1  = seed
+// b2  = (seed MOD 3 = 0)
+// lw1 = LWORD(seed) * LWORD(3)
+stPackNone.bBoolMember1 := (nSeed MOD 2 = 0);
+stPackNone.nDwordMember := nSeed;
+stPackNone.bBoolMember2 := (nSeed MOD 3 = 0);
+stPackNone.nLwordMember := UDINT_TO_LWORD(nSeed) * UDINT_TO_LWORD(3);
+
+stPackTwo.bBoolMember1 := stPackNone.bBoolMember1;
+stPackTwo.nDwordMember := stPackNone.nDwordMember;
+stPackTwo.bBoolMember2 := stPackNone.bBoolMember2;
+stPackTwo.nLwordMember := stPackNone.nLwordMember;
+
+stPackFour.bBoolMember1 := stPackNone.bBoolMember1;
+stPackFour.nDwordMember := stPackNone.nDwordMember;
+stPackFour.bBoolMember2 := stPackNone.bBoolMember2;
+stPackFour.nLwordMember := stPackNone.nLwordMember;
+
+stPackEight.bBoolMember1 := stPackNone.bBoolMember1;
+stPackEight.nDwordMember := stPackNone.nDwordMember;
+stPackEight.bBoolMember2 := stPackNone.bBoolMember2;
+stPackEight.nLwordMember := stPackNone.nLwordMember;
+]]></ST>
+    </Implementation>
+    <LineIds Name="FB_StructTest">
+      <LineId Id="490" Count="23" />
+      <LineId Id="34" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

@@ -34,7 +34,7 @@ func (c *Client) receive() {
 		n, err := conn.Read(tempBuf)
 		if err != nil {
 			if err == io.EOF {
-				c.logger.Info("receive: Connection closed by remote.")
+				c.logger.Warn("receive: Connection closed by remote.")
 			} else {
 				c.logger.Error("receive: Error reading from connection", "error", err)
 			}
@@ -45,7 +45,7 @@ func (c *Client) receive() {
 			if c.conn == conn {
 				c.invokeConnectionLostHook(err)
 			} else {
-				c.logger.Info("receive: Stale goroutine exiting — connection already replaced, skipping hook.")
+				c.logger.Debug("receive: Stale goroutine exiting — connection already replaced, skipping hook.")
 			}
 
 			return // Exit goroutine on error or EOF
@@ -54,7 +54,7 @@ func (c *Client) receive() {
 		// Guard: only write if this goroutine still owns the active connection.
 		// A stale goroutine must not corrupt the new connection's receive buffer.
 		if c.conn != conn {
-			c.logger.Info("receive: Stale goroutine detected after read — discarding data and exiting.")
+			c.logger.Debug("receive: Stale goroutine detected after read — discarding data and exiting.")
 			return
 		}
 
@@ -76,7 +76,7 @@ func (c *Client) processReceiveBuffer() {
 		// Extract the full packet
 		fullPacket := make([]byte, totalPacketLength)
 		if _, err := c.receiveBuffer.Read(fullPacket); err != nil {
-			c.logger.Error("receive: Failed to read from buffer", "error", err)
+			c.logger.Error("receive: Failed to read from buffer", "totalPacketLength", totalPacketLength, "error", err)
 			return
 		}
 
@@ -139,7 +139,7 @@ func (c *Client) parseAmsPacket(data []byte) AmsPacket {
 	// Use the ams-header module to parse
 	packet, err := amsheader.ParsePacket(data)
 	if err != nil {
-		c.logger.Error("parseAmsPacket: Failed to parse packet", "error", err)
+		c.logger.Error("parseAmsPacket: Failed to parse packet", "length", len(data), "error", err)
 		return AmsPacket{}
 	}
 

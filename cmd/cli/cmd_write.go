@@ -11,7 +11,7 @@ import (
 // handleWriteValue writes a numeric value to the PLC.
 // Usage: write_value <number>
 func handleWriteValue(args []string, client *ads.Client) {
-	data := "GLOBAL.gMyInt"
+	data := "GVL_Global.nMyInt"
 	var port uint16 = 852
 	if len(args) == 0 {
 		fmt.Println("[ERROR] Command 'write_value': No value provided to write.")
@@ -38,7 +38,7 @@ func handleWriteValue(args []string, client *ads.Client) {
 // handleWriteBool writes a boolean value to the PLC.
 // Usage: write_bool <true|false>
 func handleWriteBool(args []string, client *ads.Client) {
-	data := "GLOBAL.gMyBool"
+	data := "GVL_Global.bMyBool"
 	var port uint16 = 852
 	if len(args) == 0 {
 		fmt.Println("[ERROR] Command 'write_bool': No value provided to write.")
@@ -65,7 +65,7 @@ func handleWriteBool(args []string, client *ads.Client) {
 // handleWriteObject writes a structured object to the PLC.
 // Usage: write_object Counter=<int> Ready=<true|false>
 func handleWriteObject(args []string, client *ads.Client) {
-	data := "GLOBAL.gMyDUT"
+	data := "GVL_Global.stMySampleStruct"
 	var port uint16 = 852
 	fields := map[string]string{}
 	for _, arg := range args {
@@ -80,22 +80,22 @@ func handleWriteObject(args []string, client *ads.Client) {
 	object := map[string]any{}
 
 	// Handle Counter (int)
-	counterStr, ok := fields["Counter"]
+	counterStr, ok := fields["nCounter"]
 	if !ok {
-		fmt.Println("[ERROR] Command 'write_object': Missing required field 'Counter'.")
+		fmt.Println("[ERROR] Command 'write_object': Missing required field 'nCounter'.")
 		return
 	}
 	counterVal, err := strconv.Atoi(counterStr)
 	if err != nil {
-		fmt.Printf("[ERROR] Command 'write_object': Field 'Counter' must be an integer, got '%s'.\n", counterStr)
+		fmt.Printf("[ERROR] Command 'write_object': Field 'nCounter' must be an integer, got '%s'.\n", counterStr)
 		return
 	}
-	object["Counter"] = counterVal
+	object["nCounter"] = counterVal
 
 	// Handle Ready (bool)
-	readyStr, ok := fields["Ready"]
+	readyStr, ok := fields["bReady"]
 	if !ok {
-		fmt.Println("[ERROR] Command 'write_object': Missing required field 'Ready'.")
+		fmt.Println("[ERROR] Command 'write_object': Missing required field 'bReady'.")
 		return
 	}
 	var readyVal bool
@@ -105,10 +105,10 @@ func handleWriteObject(args []string, client *ads.Client) {
 	case "false":
 		readyVal = false
 	default:
-		fmt.Println("[ERROR] Command 'write_object': Ready must be 'true' or 'false'.")
+		fmt.Println("[ERROR] Command 'write_object': Field 'bReady' must be 'true' or 'false'.")
 		return
 	}
-	object["Ready"] = readyVal
+	object["bReady"] = readyVal
 
 	err = client.WriteValue(port, data, object)
 	if err != nil {
@@ -121,7 +121,7 @@ func handleWriteObject(args []string, client *ads.Client) {
 // handleWriteArray writes an array of integers to the PLC.
 // Usage: write_array <int1> <int2> <int3> <int4> <int5>
 func handleWriteArray(args []string, client *ads.Client) {
-	data := "GLOBAL.gIntArray"
+	data := "GVL_Global.aIntArray"
 	var port uint16 = 852
 	if len(args) != 5 {
 		fmt.Printf("[ERROR] Command 'write_array': You must provide exactly 5 elements to write to the array. Got %d.\n", len(args))

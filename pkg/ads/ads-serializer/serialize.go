@@ -51,6 +51,16 @@ func Serialize(value any, dataType types.AdsDataType, isArrayItem ...bool) ([]by
 		if !ok {
 			return nil, fmt.Errorf("invalid type for struct: %T (expected map[string]any)", value)
 		}
+
+		type serializedField struct {
+			name   string
+			offset uint32
+			data   []byte
+		}
+
+		serializedFields := make([]serializedField, 0, len(dataType.SubItems))
+		hasExplicitOffsets := false
+
 		for _, subItem := range dataType.SubItems {
 			subItemValue, exists := valMap[subItem.Name]
 			if !exists {
@@ -60,9 +70,55 @@ func Serialize(value any, dataType types.AdsDataType, isArrayItem ...bool) ([]by
 			if err != nil {
 				return nil, err
 			}
-			buf.Write(subItemBuf)
+			serializedFields = append(serializedFields, serializedField{
+				name:   subItem.Name,
+				offset: subItem.Offset,
+				data:   subItemBuf,
+			})
+			if subItem.Offset != 0 {
+				hasExplicitOffsets = true
+			}
 		}
-		return buf.Bytes(), nil
+
+		// Preserve the old declaration-order behavior for synthetic struct
+		// definitions that do not include PLC layout metadata.
+		if !hasExplicitOffsets {
+			for _, field := range serializedFields {
+				buf.Write(field.data)
+			}
+			if dataType.Size == 0 {
+				return buf.Bytes(), nil
+			}
+			result := make([]byte, dataType.Size)
+			if len(buf.Bytes()) > len(result) {
+				return nil, fmt.Errorf("struct size %d too small for sequential fields", dataType.Size)
+			}
+			copy(result, buf.Bytes())
+			return result, nil
+		}
+
+		// When offsets are available, honor the PLC-reported layout so padding
+		// bytes remain zero and packed structs serialize correctly.
+		resultSize := int(dataType.Size)
+		if resultSize == 0 {
+			for _, field := range serializedFields {
+				end := int(field.offset) + len(field.data)
+				if end > resultSize {
+					resultSize = end
+				}
+			}
+		}
+
+		result := make([]byte, resultSize)
+		for _, field := range serializedFields {
+			start := int(field.offset)
+			end := start + len(field.data)
+			if end > len(result) {
+				return nil, fmt.Errorf("struct size %d too small for field %s at offset %d", dataType.Size, field.name, field.offset)
+			}
+			copy(result[start:end], field.data)
+		}
+		return result, nil
 	}
 
 	// Second: handle arrays (including multidimensional)

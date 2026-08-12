@@ -1,0 +1,40 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <DUT Name="ST_TypeTestStruct" Id="{345335e9-ce33-4f05-894a-754f51203bff}">
+    <Declaration><![CDATA[TYPE ST_TypeTestStruct :
+STRUCT
+	// Control (writable by Go test)
+	nSeed : UDINT := 0;
+	bAutoMode : BOOL := FALSE;
+	nAutoTickInterval : UDINT := 50;
+
+	// Outputs
+	bBoolVar : BOOL;
+	nSintVar : SINT;
+	nUsintVar : USINT;
+	nByteVar : BYTE;
+	nIntVar : INT;
+	nUintVar : UINT;
+	nWordVar : WORD;
+	nDintVar : DINT;
+	nUdintVar : UDINT;
+	nDwordVar : DWORD;
+	nLintVar : LINT;
+	nUlintVar : ULINT;
+	nLwordVar : LWORD;
+	fRealVar : REAL;
+	fLrealVar : LREAL;
+	tTimeVar : TIME;
+	tdTimeOfDayVar : TOD;
+	dDateVar : DATE;
+	dtDateTimeVar : DT;
+	//tLtimeVar : LTIME;
+	//tdLTimeOfDayVar : LTOD;
+	//dLDateVar : LDATE;
+	//dtLDateTimeVar : LDT;
+	sStringVar : STRING(255);
+END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

@@ -1,6 +1,7 @@
 package adssymbol
 
 import (
+	"bytes"
 	"encoding/binary"
 	"errors"
 	"testing"
@@ -333,8 +334,8 @@ func buildSymbolData(dataLen uint32, indexGroup uint32, indexOffset uint32, size
 	copy(typeBytes, []byte(typeName))
 	data = append(data, typeBytes...)
 
-	// Append comment (no null terminator)
-	commentBytes := make([]byte, int(commentLen))
+	// Append comment (with null terminator)
+	commentBytes := make([]byte, int(commentLen)+1)
 	copy(commentBytes, []byte(comment))
 	data = append(data, commentBytes...)
 
@@ -363,4 +364,189 @@ func buildPartialSymbolData(totalLen int, nameLen uint16, typeLen uint16, commen
 	}
 
 	return data
+}
+
+// buildSymbolDataWithAttrs builds symbol binary data including optional TypeGuid and attributes.
+// flags should include the appropriate flag bits (TypeGuid=0x8, Attributes=0x1000).
+func buildSymbolDataWithAttrs(name, typeName, comment string, flags uint32, typeGuid []byte, attrs []struct{ name, value string }) []byte {
+	var buf bytes.Buffer
+
+	nameLen := uint16(len(name))
+	typeLen := uint16(len(typeName))
+	commentLen := uint16(len(comment))
+
+	// Header (30 bytes): dataLen, indexGroup, indexOffset, size, dataType, flags, nameLen, typeLen, commentLen
+	binary.Write(&buf, binary.LittleEndian, uint32(0))                 // dataLen placeholder
+	binary.Write(&buf, binary.LittleEndian, uint32(0x1000))            // indexGroup
+	binary.Write(&buf, binary.LittleEndian, uint32(0x2000))            // indexOffset
+	binary.Write(&buf, binary.LittleEndian, uint32(256))               // size
+	binary.Write(&buf, binary.LittleEndian, uint32(types.ADST_STRING)) // dataType
+	binary.Write(&buf, binary.LittleEndian, flags)                     // flags (low16=symbol flags, high16=arrayDimension)
+	binary.Write(&buf, binary.LittleEndian, nameLen)
+	binary.Write(&buf, binary.LittleEndian, typeLen)
+	binary.Write(&buf, binary.LittleEndian, commentLen)
+
+	// Name (null-terminated)
+	buf.WriteString(name)
+	buf.WriteByte(0)
+
+	// Type (null-terminated)
+	buf.WriteString(typeName)
+	buf.WriteByte(0)
+
+	// Comment (null-terminated)
+	buf.WriteString(comment)
+	buf.WriteByte(0)
+
+	// TypeGuid (16 bytes) if TypeGuid flag set
+	if flags&uint32(types.ADSSymbolFlagTypeGuid) != 0 {
+		guid := typeGuid
+		if len(guid) == 0 {
+			guid = make([]byte, 16)
+		}
+		buf.Write(guid[:16])
+	}
+
+	// Attributes if Attributes flag set
+	if flags&uint32(types.ADSSymbolFlagAttributes) != 0 {
+		binary.Write(&buf, binary.LittleEndian, uint16(len(attrs)))
+		for _, attr := range attrs {
+			buf.WriteByte(byte(len(attr.name)))
+			buf.WriteByte(byte(len(attr.value)))
+			buf.WriteString(attr.name)
+			buf.WriteByte(0) // name null terminator
+			buf.WriteString(attr.value)
+			buf.WriteByte(0) // value null terminator
+		}
+	}
+
+	return buf.Bytes()
+}
+
+func TestParseSymbol_WithAttributes(t *testing.T) {
+	t.Run("attribute with TypeGuid and no comment", func(t *testing.T) {
+		data := buildSymbolDataWithAttrs(
+			"MAIN.var_with_custom_attribute",
+			"STRING(255)",
+			"",
+			uint32(types.ADSSymbolFlagTypeGuid)|uint32(types.ADSSymbolFlagAttributes), // 0x1008
+			nil, // zeroed TypeGuid
+			[]struct{ name, value string }{
+				{"my_custom_attribute", ""},
+			},
+		)
+
+		symbol, err := ParseSymbol(data)
+		assert.NoError(t, err)
+		assert.Equal(t, "MAIN.var_with_custom_attribute", symbol.Name)
+		assert.Equal(t, "STRING(255)", symbol.Type)
+		assert.Equal(t, "00000000000000000000000000000000", symbol.TypeGUID)
+		assert.Len(t, symbol.Attributes, 1)
+		assert.Equal(t, "my_custom_attribute", symbol.Attributes[0].Name)
+		assert.Equal(t, "", symbol.Attributes[0].Value)
+	})
+
+	t.Run("attribute with known TypeGuid", func(t *testing.T) {
+		guid := []byte{0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f, 0x10}
+		data := buildSymbolDataWithAttrs(
+			"MAIN.test_var",
+			"INT",
+			"",
+			uint32(types.ADSSymbolFlagTypeGuid)|uint32(types.ADSSymbolFlagAttributes),
+			guid,
+			[]struct{ name, value string }{
+				{"otelcol_role", "log_ring"},
+			},
+		)
+
+		symbol, err := ParseSymbol(data)
+		assert.NoError(t, err)
+		assert.Equal(t, "0102030405060708090a0b0c0d0e0f10", symbol.TypeGUID)
+		assert.Len(t, symbol.Attributes, 1)
+		assert.Equal(t, "otelcol_role", symbol.Attributes[0].Name)
+		assert.Equal(t, "log_ring", symbol.Attributes[0].Value)
+	})
+
+	t.Run("multiple attributes", func(t *testing.T) {
+		data := buildSymbolDataWithAttrs(
+			"GVL.multi_attr_var",
+			"BOOL",
+			"",
+			uint32(types.ADSSymbolFlagTypeGuid)|uint32(types.ADSSymbolFlagAttributes),
+			nil,
+			[]struct{ name, value string }{
+				{"attr_one", ""},
+				{"attr_two", "value_two"},
+			},
+		)
+
+		symbol, err := ParseSymbol(data)
+		assert.NoError(t, err)
+		assert.Len(t, symbol.Attributes, 2)
+		assert.Equal(t, "attr_one", symbol.Attributes[0].Name)
+		assert.Equal(t, "", symbol.Attributes[0].Value)
+		assert.Equal(t, "attr_two", symbol.Attributes[1].Name)
+		assert.Equal(t, "value_two", symbol.Attributes[1].Value)
+	})
+
+	t.Run("attributes without TypeGuid", func(t *testing.T) {
+		data := buildSymbolDataWithAttrs(
+			"MAIN.simple_attr_var",
+			"INT",
+			"some comment",
+			uint32(types.ADSSymbolFlagAttributes), // no TypeGuid
+			nil,
+			[]struct{ name, value string }{
+				{"my_attr", "my_val"},
+			},
+		)
+
+		symbol, err := ParseSymbol(data)
+		assert.NoError(t, err)
+		assert.Equal(t, "some comment", symbol.Comment)
+		assert.Equal(t, "", symbol.TypeGUID)
+		assert.Len(t, symbol.Attributes, 1)
+		assert.Equal(t, "my_attr", symbol.Attributes[0].Name)
+		assert.Equal(t, "my_val", symbol.Attributes[0].Value)
+	})
+
+	t.Run("no attributes flag - attributes slice is nil", func(t *testing.T) {
+		data := buildSymbolData(100, 0x1234, 0x5678, 4, uint32(types.ADST_BIT), 0x0001, 3, 3, 0, "foo", "INT", "")
+
+		symbol, err := ParseSymbol(data)
+		assert.NoError(t, err)
+		assert.Nil(t, symbol.Attributes)
+		assert.Equal(t, "", symbol.TypeGUID)
+		assert.Nil(t, symbol.ArrayInfo)
+	})
+}
+
+func TestParseSymbol_WithArrayInfo(t *testing.T) {
+	t.Run("1D array symbol", func(t *testing.T) {
+		// flags: high16 = arrayDimension=1, low16 = 0x0001
+		flags := uint32(1<<16) | 0x0001
+		var buf bytes.Buffer
+		binary.Write(&buf, binary.LittleEndian, uint32(0))                // dataLen
+		binary.Write(&buf, binary.LittleEndian, uint32(0x1000))           // indexGroup
+		binary.Write(&buf, binary.LittleEndian, uint32(0x2000))           // indexOffset
+		binary.Write(&buf, binary.LittleEndian, uint32(40))               // size
+		binary.Write(&buf, binary.LittleEndian, uint32(types.ADST_INT16)) // dataType
+		binary.Write(&buf, binary.LittleEndian, flags)
+		binary.Write(&buf, binary.LittleEndian, uint16(7)) // nameLen "arr_var" (7 chars)
+		binary.Write(&buf, binary.LittleEndian, uint16(3)) // typeLen "INT" (3 chars)
+		binary.Write(&buf, binary.LittleEndian, uint16(0)) // commentLen
+		buf.WriteString("arr_var\x00")                     // name (7+1 bytes)
+		buf.WriteString("INT\x00")                         // type (3+1 bytes)
+		buf.WriteByte(0)                                   // comment null terminator
+		// Array info: startIndex=-5, length=20
+		binary.Write(&buf, binary.LittleEndian, int32(-5))
+		binary.Write(&buf, binary.LittleEndian, uint32(20))
+
+		symbol, err := ParseSymbol(buf.Bytes())
+		assert.NoError(t, err)
+		assert.Equal(t, "arr_var", symbol.Name)
+		assert.Len(t, symbol.ArrayInfo, 1)
+		assert.Equal(t, int32(-5), symbol.ArrayInfo[0].StartIndex)
+		assert.Equal(t, uint32(20), symbol.ArrayInfo[0].Length)
+	})
 }

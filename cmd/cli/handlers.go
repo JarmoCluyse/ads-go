@@ -22,11 +22,12 @@ func getHandlers() map[string]CommandHandler {
 		"set_state":   handleSetState,
 
 		// Read commands (cmd_read.go)
-		"read_value":   handleReadValue,
-		"read_bool":    handleReadBool,
-		"read_object":  handleReadObject,
-		"read_array":   handleReadArray,
-		"list_symbols": handleListSymbols,
+		"read_value":      handleReadValue,
+		"read_bool":       handleReadBool,
+		"read_object":     handleReadObject,
+		"read_array":      handleReadArray,
+		"list_symbols":    handleListSymbols,
+		"read_attributes": handleReadAttributes,
 
 		// Write commands (cmd_write.go)
 		"write_value":  handleWriteValue,

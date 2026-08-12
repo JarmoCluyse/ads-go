@@ -11,7 +11,7 @@ import (
 
 // ReadRaw reads raw data from the ADS server.
 func (c *Client) ReadRaw(port uint16, indexGroup uint32, indexOffset uint32, size uint32) ([]byte, error) {
-	c.logger.Debug("ReadRaw: Reading raw data", "indexGroup", indexGroup, "indexOffset", indexOffset, "size", size)
+	c.logger.Debug("ReadRaw: Reading raw data", "port", port, "indexGroup", indexGroup, "indexOffset", indexOffset, "size", size)
 
 	payload := adsrequests.BuildReadRequest(indexGroup, indexOffset, size)
 
@@ -26,7 +26,7 @@ func (c *Client) ReadRaw(port uint16, indexGroup uint32, indexOffset uint32, siz
 	}
 	payload, err = adsheader.StripAdsHeader(response)
 	if err != nil {
-		c.logger.Error("ReadRaw: ADS header error", "error", err)
+		c.logger.Error("ReadRaw: ADS header error", "port", port, "indexGroup", indexGroup, "indexOffset", indexOffset, "error", err)
 		return nil, err
 	}
 	return payload, nil
@@ -34,7 +34,7 @@ func (c *Client) ReadRaw(port uint16, indexGroup uint32, indexOffset uint32, siz
 
 // WriteRaw writes raw data to the ADS server.
 func (c *Client) WriteRaw(port uint16, indexGroup uint32, indexOffset uint32, data []byte) error {
-	c.logger.Debug("WriteRaw: Writing raw data", "indexGroup", indexGroup, "indexOffset", indexOffset, "size", len(data))
+	c.logger.Debug("WriteRaw: Writing raw data", "port", port, "indexGroup", indexGroup, "indexOffset", indexOffset, "size", len(data))
 
 	payload := adsrequests.BuildWriteRequest(indexGroup, indexOffset, data)
 
@@ -49,16 +49,42 @@ func (c *Client) WriteRaw(port uint16, indexGroup uint32, indexOffset uint32, da
 	}
 	_, err = adserrors.StripAdsError(res)
 	if err != nil {
-		c.logger.Error("WriteRaw: ADS error received", "error", err)
+		c.logger.Error("WriteRaw: ADS error received", "port", port, "indexGroup", indexGroup, "indexOffset", indexOffset, "error", err)
 		return err
 	}
 
 	return nil
 }
 
+// ReadWriteRawBinary sends an ADS ReadWrite with exact binary write data (no
+// null terminator appended). Use this for binary-protocol index groups such as
+// the ADS logger consumer registration (IG 0x0000F090).
+func (c *Client) ReadWriteRawBinary(port uint16, indexGroup uint32, indexOffset uint32, readLength uint32, writeData []byte) ([]byte, error) {
+	c.logger.Debug("ReadWriteRawBinary: Reading and writing binary data", "port", port, "indexGroup", indexGroup, "indexOffset", indexOffset, "readLength", readLength, "writeLength", len(writeData))
+
+	payload := adsrequests.BuildReadWriteRequest(indexGroup, indexOffset, readLength, writeData)
+
+	req := AdsCommandRequest{
+		Command:    types.ADSCommandReadWrite,
+		TargetPort: port,
+		Data:       payload,
+	}
+	response, err := c.send(req)
+	if err != nil {
+		return nil, fmt.Errorf("ReadWriteRawBinary: failed to send ADS command: %w", err)
+	}
+
+	data, err := adsheader.StripAdsHeader(response)
+	if err != nil {
+		c.logger.Error("ReadWriteRawBinary: ADS header error", "port", port, "indexGroup", indexGroup, "indexOffset", indexOffset, "error", err)
+		return nil, err
+	}
+	return data, nil
+}
+
 // ReadWriteRaw reads and writes raw data to the ADS server.
 func (c *Client) ReadWriteRaw(port uint16, indexGroup uint32, indexOffset uint32, readLength uint32, writeData []byte) ([]byte, error) {
-	c.logger.Debug("ReadWriteRaw: Reading and writing raw data", "indexGroup", indexGroup, "indexOffset", indexOffset, "readLength", readLength, "writeDataSize", len(writeData))
+	c.logger.Debug("ReadWriteRaw: Reading and writing raw data", "port", port, "indexGroup", indexGroup, "indexOffset", indexOffset, "readLength", readLength, "writeLength", len(writeData))
 
 	payload := adsrequests.BuildReadWriteRequestWithNullTerminator(indexGroup, indexOffset, readLength, writeData)
 
@@ -74,7 +100,7 @@ func (c *Client) ReadWriteRaw(port uint16, indexGroup uint32, indexOffset uint32
 
 	data, err := adsheader.StripAdsHeader(response)
 	if err != nil {
-		c.logger.Error("ReadWriteRaw: ADS header error", "error", err)
+		c.logger.Error("ReadWriteRaw: ADS header error", "port", port, "indexGroup", indexGroup, "indexOffset", indexOffset, "error", err)
 		return nil, err
 	}
 	return data, nil

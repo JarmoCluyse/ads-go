@@ -10,7 +10,7 @@ import (
 
 // WriteControl writes control data to an ADS device.
 func (c *Client) WriteControl(adsState types.ADSState, deviceState uint16, targetPort uint16) error {
-	c.logger.Debug("WriteControl: Setting ADS state", "adsState", adsState.String(), "deviceState", fmt.Sprintf("0x%x", deviceState))
+	c.logger.Debug("WriteControl: Setting ADS state", "targetPort", targetPort, "state", adsState.String(), "deviceState", fmt.Sprintf("0x%x", deviceState))
 
 	payload := adsrequests.BuildWriteControlRequest(uint16(adsState), deviceState)
 
@@ -21,19 +21,19 @@ func (c *Client) WriteControl(adsState types.ADSState, deviceState uint16, targe
 	}
 	respData, err := c.send(req)
 	if err != nil {
-		c.logger.Error("WriteControl: Failed to send WriteControl command", "error", err)
+		c.logger.Error("WriteControl: Failed to send WriteControl command", "targetPort", targetPort, "error", err)
 		return err
 	}
-	c.logger.Debug("WriteControl: Received raw response data", "length", len(respData))
+	c.logger.Debug("WriteControl: Received raw response data", "targetPort", targetPort, "length", len(respData))
 
 	if len(respData) < 4 {
-		c.logger.Error("WriteControl: Invalid response length", "length", len(respData), "expected", "at least 4")
+		c.logger.Error("WriteControl: Invalid response length", "targetPort", targetPort, "length", len(respData), "expected", "at least 4")
 		return fmt.Errorf("invalid response length: %d", len(respData))
 	}
 	if err := adserrors.CheckAdsError(respData[0:4]); err != nil {
-		c.logger.Error("WriteControl: ADS error received", "error", err)
+		c.logger.Error("WriteControl: ADS error received", "targetPort", targetPort, "error", err)
 		return err
 	}
-	c.logger.Info("WriteControl: Successfully wrote control")
+	c.logger.Debug("WriteControl: Successfully wrote control", "targetPort", targetPort, "state", adsState.String(), "deviceState", deviceState)
 	return nil
 }

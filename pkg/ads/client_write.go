@@ -17,17 +17,17 @@ func (c *Client) WriteValue(port uint16, path string, value any) error {
 
 	symbol, err := c.GetSymbol(port, path)
 	if err != nil {
-		return fmt.Errorf("WriteValue: failed to get symbol: %w", err)
+		return fmt.Errorf("WriteValue(%q): failed to get symbol: %w", path, err)
 	}
 
 	dataType, err := c.GetDataType(symbol.Type, port)
 	if err != nil {
-		return fmt.Errorf("WriteValue: failed to get data type: %w", err)
+		return fmt.Errorf("WriteValue(%q): failed to get data type: %w", path, err)
 	}
 
 	data, err := c.convertValueToBuffer(value, dataType)
 	if err != nil {
-		return fmt.Errorf("WriteValue: failed to convert value to buffer: %w", err)
+		return fmt.Errorf("WriteValue(%q): failed to convert value to buffer: %w", path, err)
 	}
 	err = c.WriteRaw(port, symbol.IndexGroup, symbol.IndexOffset, data)
 	return err

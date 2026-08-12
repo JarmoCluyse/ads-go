@@ -32,14 +32,14 @@ func (c *Client) SubscribeValue(port uint16, path string, callback SubscriptionC
 	// Get symbol info (like ReadValue does)
 	symbol, err := c.GetSymbol(port, path)
 	if err != nil {
-		return nil, fmt.Errorf("SubscribeValue: failed to get symbol: %w", err)
+		return nil, fmt.Errorf("SubscribeValue(%q): failed to get symbol: %w", path, err)
 	}
 	c.logger.Debug("SubscribeValue: Symbol received", "symbol", symbol)
 
 	// Get data type (like ReadValue does)
 	dataType, err := c.GetDataType(symbol.Type, port)
 	if err != nil {
-		return nil, fmt.Errorf("SubscribeValue: failed to get data type: %w", err)
+		return nil, fmt.Errorf("SubscribeValue(%q): failed to get data type: %w", path, err)
 	}
 
 	// Subscribe using raw address with symbol and data type info
@@ -71,8 +71,9 @@ func (c *Client) SubscribeRaw(port uint16, indexGroup, indexOffset, size uint32,
 func (c *Client) addSubscription(port uint16, indexGroup, indexOffset, size uint32, callback SubscriptionCallback, settings SubscriptionSettings, symbol *adssymbol.AdsSymbol, dataType *types.AdsDataType, isRaw bool) (*ActiveSubscription, error) {
 	c.logger.Debug("addSubscription: Creating subscription", "port", port, "indexGroup", indexGroup, "indexOffset", indexOffset)
 
-	// Apply defaults
-	if settings.CycleTime == 0 {
+	// Apply defaults — only impose a minimum cycle time for OnChange mode;
+	// Cyclic mode with CycleTime=0 means "use the device's native cycle" (immediate push).
+	if settings.CycleTime == 0 && settings.SendOnChange {
 		settings.CycleTime = 200 * time.Millisecond
 	}
 
@@ -138,7 +139,21 @@ func (c *Client) addSubscription(port uint16, indexGroup, indexOffset, size uint
 	// Parse notification handle (bytes 4-7)
 	notificationHandle := binary.LittleEndian.Uint32(responseData[4:8])
 
-	c.logger.Info("addSubscription: Subscription created", "handle", notificationHandle, "port", port)
+	symbolName := ""
+	if symbol != nil {
+		symbolName = symbol.Name
+	}
+	c.logger.Info("addSubscription: Subscription created",
+		"handle", notificationHandle,
+		"port", port,
+		"symbol", symbolName,
+		"indexGroup", indexGroup,
+		"indexOffset", indexOffset,
+		"size", size,
+		"cycleTime", settings.CycleTime,
+		"sendOnChange", settings.SendOnChange,
+		"isRaw", isRaw,
+	)
 
 	// Create ActiveSubscription
 	sub := &ActiveSubscription{
@@ -313,12 +328,12 @@ func filetimeToTime(filetime uint64) time.Time {
 // handleNotification processes received notification packets and routes them
 // to the appropriate subscription callbacks.
 func (c *Client) handleNotification(data []byte) {
-	c.logger.Debug("handleNotification: Processing notification packet", "dataLen", len(data))
+	c.logger.Debug("handleNotification: Processing notification packet", "length", len(data))
 
 	// Parse notification packet
 	stamps, err := parseNotification(data)
 	if err != nil {
-		c.logger.Error("handleNotification: Failed to parse notification", "error", err)
+		c.logger.Error("handleNotification: Failed to parse notification", "length", len(data), "error", err)
 		return
 	}
 

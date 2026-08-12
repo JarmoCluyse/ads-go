@@ -1,0 +1,39 @@
+<?xml version="1.0"?>
+<TcSmProject xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://www.beckhoff.com/schemas/2012/07/TcSmProject" TcSmVersion="1.0" TcVersion="3.1.4024.62">
+	<Project ProjectGUID="{F2E11A39-BD69-4075-88F6-40AA79B820D2}" TargetNetId="199.4.42.250.1.1" Target64Bit="true" TargetConnectionTimeout="5" RelativeTargetNetId="true" RelativeIpAddresses="true" SaveToTarget="false" HideSaveToTarget="true" ShowHideConfigurations="#x3c7">
+		<System>
+			<Settings MaxCpus="4" NonWinCpus="3" RouterMemory="268435456">
+				<Cpu CpuId="1"/>
+				<Debugger Priority="61"/>
+				<IoIdleTask Priority="2"/>
+			</Settings>
+			<Tasks>
+				<Task Id="7" Priority="20" CycleTime="100000" AmsPort="354" AdtTasks="true">
+					<Name>PlcTask</Name>
+				</Task>
+			</Tasks>
+		</System>
+		<Plc>
+			<Project GUID="{A4B7050C-70E7-4D50-A7FA-822A09BE6866}" Name="AdsGo_Det" PrjFilePath="AdsGo_Det.plcproj" TmcFilePath="AdsGo_Det.tmc" ReloadTmc="true" AmsPort="852" FileArchiveSettings="#x000e" SymbolicMapping="true">
+				<Instance Id="#x08502040" TcSmClass="TComPlcObjDef" KeepUnrestoredLinks="2" TmcPath="AdsGo_Det.tmc" TmcHash="{5CCDCA04-6578-D137-604E-F2B05557F19C}">
+					<Name>AdsGo_Det Instance</Name>
+					<CLSID ClassFactory="TcPlc30">{08500001-0000-0000-F000-000000000064}</CLSID>
+					<Contexts>
+						<Context>
+							<Id>0</Id>
+							<Name>PlcTask</Name>
+							<ManualConfig>
+								<OTCID>#x02010070</OTCID>
+							</ManualConfig>
+							<Priority>20</Priority>
+							<CycleTime>10000000</CycleTime>
+						</Context>
+					</Contexts>
+					<TaskPouOids>
+						<TaskPouOid Prio="20" OTCID="#x08502041"/>
+					</TaskPouOids>
+				</Instance>
+			</Project>
+		</Plc>
+	</Project>
+</TcSmProject>

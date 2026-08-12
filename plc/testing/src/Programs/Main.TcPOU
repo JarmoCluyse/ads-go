@@ -1,0 +1,28 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <POU Name="Main" Id="{151bda18-a213-42d0-86e0-e79837f085e9}" SpecialFunc="None">
+    <Declaration><![CDATA[PROGRAM Main
+VAR
+	fbTypeTest : FB_TypeTest;
+	fbWriteTest : FB_WriteTest;
+	// Struct packing test targets — one instance per pack_mode
+	// struct_tests: PLC drives these from seed (Go read-only for phase 1)
+	fbStructTest : FB_StructTest;
+	
+	{attribute 'some_made_up_var_key':='some_made_up_var_value'}
+	fbAttributeTest : FB_AttributeTest;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[fbTypeTest();
+fbWriteTest();
+fbStructTest();
+fbAttributeTest();
+]]></ST>
+    </Implementation>
+    <LineIds Name="Main">
+      <LineId Id="139" Count="3" />
+      <LineId Id="82" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

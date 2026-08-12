@@ -1,21 +1,26 @@
 package main
 
 import (
+	"flag"
 	"log/slog"
 	"os"
+	"strconv"
 	"sync"
 	"time"
 
 	"github.com/jarmocluyse/ads-go/cmd/cli"
 	"github.com/jarmocluyse/ads-go/pkg/ads"
 	adsstateinfo "github.com/jarmocluyse/ads-go/pkg/ads/ads-stateinfo"
+	adsconstants "github.com/jarmocluyse/ads-go/pkg/ads/constants"
 	"github.com/lmittmann/tint"
 )
 
-const (
-	defaultTargetNetID = "192.168.157.131.1.1"
-	defaultTimeout     = 2 * time.Second
-)
+func envOrDefault(key, fallback string) string {
+	if v := os.Getenv(key); v != "" {
+		return v
+	}
+	return fallback
+}
 
 func main() {
 	logLevel := &slog.LevelVar{}
@@ -25,9 +30,39 @@ func main() {
 	slog.SetDefault(slog.New(handler))
 	slog.Info("main: Starting application")
 
+	// Resolve env var defaults before defining flags so that flag --help shows the effective default.
+	defaultTargetNetID := envOrDefault("ADS_TARGET_NET_ID", "127.0.0.1.1.1")
+	defaultRouterHost := envOrDefault("ADS_ROUTER_HOST", "127.0.0.1")
+
+	defaultRouterPort := adsconstants.ADSDefaultTCPPort
+	if v := os.Getenv("ADS_ROUTER_PORT"); v != "" {
+		if p, err := strconv.Atoi(v); err == nil {
+			defaultRouterPort = p
+		} else {
+			slog.Warn("main: invalid ADS_ROUTER_PORT, using default", "value", v, "default", defaultRouterPort)
+		}
+	}
+
+	defaultTimeout := 2 * time.Second
+	if v := os.Getenv("ADS_TIMEOUT"); v != "" {
+		if d, err := time.ParseDuration(v); err == nil {
+			defaultTimeout = d
+		} else {
+			slog.Warn("main: invalid ADS_TIMEOUT, using default", "value", v, "default", defaultTimeout)
+		}
+	}
+
+	targetNetID := flag.String("target-net-id", defaultTargetNetID, "AMS NetID of the target TwinCAT runtime (env: ADS_TARGET_NET_ID)")
+	routerHost := flag.String("router-host", defaultRouterHost, "Hostname or IP of the AMS router (env: ADS_ROUTER_HOST)")
+	routerPort := flag.Int("router-port", defaultRouterPort, "TCP port of the AMS router (env: ADS_ROUTER_PORT)")
+	timeout := flag.Duration("timeout", defaultTimeout, "Per-message read/write timeout (env: ADS_TIMEOUT)")
+	flag.Parse()
+
 	settings := ads.ClientSettings{
-		TargetNetID: defaultTargetNetID,
-		Timeout:     defaultTimeout,
+		TargetNetID: *targetNetID,
+		RouterHost:  *routerHost,
+		RouterPort:  *routerPort,
+		Timeout:     *timeout,
 	}
 
 	// Synchronization for reconnection logic

@@ -41,7 +41,7 @@ func (c *Client) ReadTcSystemState() (*adsstateinfo.SystemState, error) {
 		return nil, err
 	}
 
-	c.logger.Info("ReadTcSystemState: Successfully parsed TwinCAT system state response", "response", state)
+	c.logger.Debug("ReadTcSystemState: Successfully parsed TwinCAT system state response", "response", state)
 	return &state, nil
 }
 
@@ -85,8 +85,8 @@ func (c *Client) ReadTcSystemExtendedState() (*adsstateinfo.ExtendedSystemState,
 		return nil, err
 	}
 
-	c.logger.Info("ReadTcSystemExtendedState: Successfully parsed TwinCAT extended system state",
-		"adsState", state.AdsState.String(),
+	c.logger.Debug("ReadTcSystemExtendedState: Successfully parsed TwinCAT extended system state",
+		"state", state.AdsState.String(),
 		"deviceState", state.DeviceState,
 		"restartIndex", state.RestartIndex,
 		"version", fmt.Sprintf("%d.%d.%d", state.Version, state.Revision, state.Build))

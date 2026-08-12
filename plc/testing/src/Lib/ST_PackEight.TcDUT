@@ -1,0 +1,15 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.13">
+  <DUT Name="ST_PackEight" Id="{a1b2c3d4-0000-4000-8000-000000000008}">
+    <Declaration><![CDATA[{attribute 'pack_mode' := '8'}
+TYPE ST_PackEight :
+STRUCT
+	bBoolMember1 : BOOL;
+	nDwordMember : DWORD;
+	bBoolMember2 : BOOL;
+	nLwordMember : LWORD;
+END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

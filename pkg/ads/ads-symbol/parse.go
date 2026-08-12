@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/jarmocluyse/ads-go/pkg/ads/types"
 	"github.com/jarmocluyse/ads-go/pkg/ads/utils"
 )
 
@@ -76,9 +77,9 @@ func ParseSymbol(data []byte) (AdsSymbol, error) {
 	}
 
 	// Validate remaining data length for variable-length fields
-	nameLen := int(symbol.NameLength) + 1   // +1 for null terminator
-	typeLen := int(symbol.TypeLength) + 1   // +1 for null terminator
-	commentLen := int(symbol.CommentLength) // Comment is not null-terminated
+	nameLen := int(symbol.NameLength) + 1       // +1 for null terminator
+	typeLen := int(symbol.TypeLength) + 1       // +1 for null terminator
+	commentLen := int(symbol.CommentLength) + 1 // +1 for null terminator (comment is also null-terminated)
 	requiredLen := nameLen + typeLen + commentLen
 
 	if reader.Len() < requiredLen {
@@ -99,13 +100,64 @@ func ParseSymbol(data []byte) (AdsSymbol, error) {
 	}
 	symbol.Type = utils.DecodePlcStringBuffer(typeName)
 
-	// Read Comment (not null-terminated)
+	// Read Comment (null-terminated)
 	comment := make([]byte, commentLen)
-	if commentLen > 0 {
-		if err := binary.Read(reader, binary.LittleEndian, &comment); err != nil {
-			return AdsSymbol{}, fmt.Errorf("failed to read Comment: %w", err)
+	if err := binary.Read(reader, binary.LittleEndian, &comment); err != nil {
+		return AdsSymbol{}, fmt.Errorf("failed to read Comment: %w", err)
+	}
+	symbol.Comment = utils.DecodePlcStringBuffer(comment)
+
+	// Parse array info blocks. The Flags field was read as uint32 combining flags (low uint16)
+	// and arrayDimension (high uint16) from the wire format. Extract arrayDimension from
+	// the upper 16 bits; each entry is startIndex (int32) + length (uint32) = 8 bytes.
+	arrayDimension := uint16(symbol.Flags >> 16)
+	for i := uint16(0); i < arrayDimension; i++ {
+		var entry ArrayInfoEntry
+		if err := binary.Read(reader, binary.LittleEndian, &entry.StartIndex); err != nil {
+			break
 		}
-		symbol.Comment = utils.DecodePlcStringBuffer(comment)
+		if err := binary.Read(reader, binary.LittleEndian, &entry.Length); err != nil {
+			break
+		}
+		symbol.ArrayInfo = append(symbol.ArrayInfo, entry)
+	}
+
+	// Parse TypeGuid block (16 bytes) if the TypeGuid flag is set.
+	if symbol.Flags&types.ADSSymbolFlagTypeGuid != 0 {
+		typeGuidBuf := make([]byte, 16)
+		if _, err := reader.Read(typeGuidBuf); err == nil {
+			symbol.TypeGUID = fmt.Sprintf("%x", typeGuidBuf)
+		}
+	}
+
+	// Read pragma attributes if ADSSymbolFlagAttributes (0x1000) is set.
+	// Binary layout per attribute: uint8 nameLen, uint8 valueLen,
+	// [nameLen+1]byte name (null-terminated), [valueLen+1]byte value (null-terminated).
+	if symbol.Flags&types.ADSSymbolFlagAttributes != 0 && reader.Len() >= 2 {
+		var attrCount uint16
+		if err := binary.Read(reader, binary.LittleEndian, &attrCount); err == nil {
+			for i := uint16(0); i < attrCount && reader.Len() >= 2; i++ {
+				var nameLen, valueLen uint8
+				if err := binary.Read(reader, binary.LittleEndian, &nameLen); err != nil {
+					break
+				}
+				if err := binary.Read(reader, binary.LittleEndian, &valueLen); err != nil {
+					break
+				}
+				nameBuf := make([]byte, int(nameLen)+1)
+				valBuf := make([]byte, int(valueLen)+1)
+				if _, err := reader.Read(nameBuf); err != nil {
+					break
+				}
+				if _, err := reader.Read(valBuf); err != nil {
+					break
+				}
+				symbol.Attributes = append(symbol.Attributes, SymbolAttribute{
+					Name:  utils.DecodePlcStringBuffer(nameBuf),
+					Value: utils.DecodePlcStringBuffer(valBuf),
+				})
+			}
+		}
 	}
 
 	return symbol, nil

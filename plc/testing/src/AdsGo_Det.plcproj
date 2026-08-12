@@ -3,13 +3,13 @@
   <PropertyGroup>
     <FileVersion>1.0.0.0</FileVersion>
     <SchemaVersion>2.0</SchemaVersion>
-    <ProjectGuid>{84419b4d-a906-4a7e-b105-28b655a900f8}</ProjectGuid>
+    <ProjectGuid>{A4B7050C-70E7-4D50-A7FA-822A09BE6866}</ProjectGuid>
     <SubObjectsSortedByName>True</SubObjectsSortedByName>
     <DownloadApplicationInfo>true</DownloadApplicationInfo>
     <WriteProductVersion>true</WriteProductVersion>
     <GenerateTpy>false</GenerateTpy>
-    <Name>smallproject</Name>
-    <ProgramVersion>3.1.4024.0</ProgramVersion>
+    <Name>AdsGo_Det</Name>
+    <ProgramVersion>3.1.4026.21</ProgramVersion>
     <Application>{fb64cf40-248d-4842-835d-2d98102ff47d}</Application>
     <TypeSystem>{bfde0c85-6d1d-4c28-95cb-9059e79287bd}</TypeSystem>
     <Implicit_Task_Info>{62aa55c8-e782-4a0a-9c3a-feeadc16b78c}</Implicit_Task_Info>
@@ -18,25 +18,44 @@
     <LibraryReferences>{c34386ea-03e6-4409-9a3f-3bcbf5806004}</LibraryReferences>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Include="DUTs\DUTSample.TcDUT">
+    <Compile Include="Lib\FB_AttributeTest.TcPOU">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="GVLs\GLOBAL.TcGVL">
-      <SubType>Code</SubType>
-      <LinkAlways>true</LinkAlways>
-    </Compile>
-    <Compile Include="PlcTask.TcTTO">
+    <Compile Include="Lib\ST_TypeTestStruct.TcDUT">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="POUs\MAIN.TcPOU">
+    <Compile Include="Lib\ST_PackNone.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Lib\ST_PackTwo.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Lib\ST_PackFour.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Lib\ST_PackEight.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Lib\FB_StructTest.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Lib\FB_TypeTest.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Lib\FB_WriteTest.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Programs\Main.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Tasks\PlcTask.TcTTO">
       <SubType>Code</SubType>
     </Compile>
   </ItemGroup>
   <ItemGroup>
-    <Folder Include="DUTs" />
-    <Folder Include="GVLs" />
-    <Folder Include="VISUs" />
-    <Folder Include="POUs" />
+    <Folder Include="Lib" />
+    <Folder Include="Tasks" />
+    <Folder Include="Programs" />
   </ItemGroup>
   <ItemGroup>
     <PlaceholderReference Include="Tc2_Standard">
@@ -53,7 +72,7 @@
     </PlaceholderReference>
   </ItemGroup>
   <ItemGroup>
-    <None Include="smallproject.tmc">
+    <None Include="AdsGo_Det.tmc">
       <SubType>Content</SubType>
     </None>
   </ItemGroup>

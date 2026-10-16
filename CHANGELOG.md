@@ -56,6 +56,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Improved subscription callback to track statistics automatically
 
 ### Fixed
+- Build on 32-bit platforms (e.g. `GOARCH=arm`): `int` to `UDINT` range check overflowed `int`
 - Removed redundant newline in help command output (go vet warning)
 - **Reconnection loop after `set_state config/run`**: Two races in the reconnect path caused an infinite loop when TwinCAT left Run mode
   - Stale `receive()` goroutine was closing the newly established connection via its deferred `conn.Close()`, immediately dropping it and triggering another reconnect cycle

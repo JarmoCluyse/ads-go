@@ -364,6 +364,12 @@ func TestSerialize_Primitives(t *testing.T) {
 			expected: []byte{0xFF, 0xFF, 0xFF, 0xFF},
 		},
 		{
+			name:     "UINT32 - int",
+			value:    int(100),
+			dataType: types.AdsDataType{DataType: types.ADST_UINT32},
+			expected: []byte{0x64, 0x00, 0x00, 0x00},
+		},
+		{
 			name:     "INT64",
 			value:    int64(1),
 			dataType: types.AdsDataType{DataType: types.ADST_INT64},

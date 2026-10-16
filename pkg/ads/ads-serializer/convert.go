@@ -165,7 +165,7 @@ func toUint32(value any) (uint32, bool) {
 	case uint32:
 		return v, true
 	case int:
-		if v >= 0 && v <= 4294967295 {
+		if v >= 0 && uint64(v) <= 4294967295 {
 			return uint32(v), true
 		}
 	case uint64:

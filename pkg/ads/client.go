@@ -54,6 +54,12 @@ type ClientSettings struct {
 	RouterPort  int           // port of the router (48898 assumed if empty)
 	Timeout     time.Duration // message timeout (2s assumed if empty)
 
+	// LocalNetID and LocalPort set the client's own AMS address instead of having
+	// the router assign one, for a direct connection to a remote PLC (its router
+	// assigns none). The PLC needs a static route for LocalNetID.
+	LocalNetID string // empty: the router assigns the address
+	LocalPort  uint16 // 32750 assumed if empty and LocalNetID is set
+
 	// Connection lifecycle hooks (optional)
 	// OnConnect is called after successful connection establishment (synchronous).
 	// The hook receives the client and assigned local AMS address.
@@ -104,6 +110,9 @@ func (cs *ClientSettings) LoadDefaults() {
 	}
 	if cs.Timeout == 0 {
 		cs.Timeout = 2 * time.Second
+	}
+	if cs.LocalNetID != "" && cs.LocalPort == 0 {
+		cs.LocalPort = 32750
 	}
 	if cs.StatePollingInterval == 0 {
 		cs.StatePollingInterval = 2 * time.Second

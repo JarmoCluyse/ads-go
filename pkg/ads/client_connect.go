@@ -27,14 +27,18 @@ func (c *Client) Connect() error {
 	// bleed into the new session's packet framing.
 	c.receiveBuffer.Reset()
 
-	if err := c.registerAdsPort(); err != nil {
+	if c.settings.LocalNetID != "" {
+		// A remote PLC router assigns no address and closes the connection on a port registration.
+		c.localAmsAddr = AmsAddress{NetID: c.settings.LocalNetID, Port: c.settings.LocalPort}
+	} else if err := c.registerAdsPort(); err != nil {
 		if closeErr := c.conn.Close(); closeErr != nil {
 			c.logger.Error("Connect: Failed to close connection after port registration failure", "error", closeErr)
 		}
 		c.logger.Error("Connect: Failed to register ADS port", "error", err)
 		return err
+	} else {
+		c.logger.Debug("Connect: ADS port registered.")
 	}
-	c.logger.Debug("Connect: ADS port registered.")
 
 	// Start receiving
 	go c.receive()
@@ -101,9 +105,12 @@ func (c *Client) Disconnect() error {
 			c.settings.OnDisconnect(c)
 		})
 
-		err := c.unregisterAdsPort()
-		if err != nil {
-			c.logger.Error("Disconnect: Error unregistering ADS port", "error", err)
+		var err error
+		if c.settings.LocalNetID == "" {
+			err = c.unregisterAdsPort()
+			if err != nil {
+				c.logger.Error("Disconnect: Error unregistering ADS port", "error", err)
+			}
 		}
 
 		defer func() {

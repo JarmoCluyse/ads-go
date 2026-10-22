@@ -242,8 +242,10 @@ In this setup, the client directly connects to the PLC and uses its TwinCAT rout
 ```go
 client := ads.NewClient(ads.ClientSettings{
 	TargetNetID: "192.168.1.120.1.1", // AmsNetId of the target PLC
-	RouterAddr:  "192.168.1.120",     // PLC IP address
+	RouterHost:  "192.168.1.120",     // PLC IP address
 	RouterPort:  48898,
+	LocalNetID:  "192.168.1.10.1.1",  // NetId of the static route
+	LocalPort:   32750,
 }, nil)
 ```
 

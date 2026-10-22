@@ -74,8 +74,9 @@ Setup 2 - Direct connection from any system (Linux, Raspberry Pi, etc.):
 
 	client := ads.NewClient(ads.ClientSettings{
 		TargetNetID: "192.168.1.120.1.1", // PLC's AmsNetId
-		RouterAddr:  "192.168.1.120",     // PLC's IP address
+		RouterHost:  "192.168.1.120",     // PLC's IP address
 		RouterPort:  48898,                // ADS router port
+		LocalNetID:  "192.168.1.10.1.1",  // NetId of the PLC's static route for this client
 	}, nil)
 
 Setup 3 - Localhost connection:
